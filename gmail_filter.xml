@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
+  <entry>
+    <category term='filter'></category>
+    <title>Mail Filter</title>
+    <id>tag:mail.google.com,2025-01-01:filter-1</id>
+    <updated>2025-01-01T00:00:00Z</updated>
+    <content></content>
+    <apps:property name='hasTheWord' value='{subject:&quot;application received&quot; subject:&quot;thank you for applying&quot; subject:&quot;thank you for your application&quot; subject:&quot;offer letter&quot; subject:&quot;we received your application&quot; subject:&quot;application confirmation&quot; subject:&quot;application submitted&quot; subject:&quot;your application has been&quot; subject:&quot;thanks for applying&quot; subject:&quot;job offer&quot; subject:&quot;offer of employment&quot; subject:&quot;interview invitation&quot; subject:&quot;invitation to interview&quot; subject:&quot;application status update&quot; subject:&quot;update on your application&quot;}'/>
+    <apps:property name='doesNotHaveTheWord' value='&quot;credit card&quot; loan membership webinar newsletter receipt &quot;order confirmation&quot; &quot;event registration&quot;'/>
+    <apps:property name='forwardTo' value='sachin.k.chaudhary.in889-Jobs@manus.bot'/>
+  </entry>
+</feed>

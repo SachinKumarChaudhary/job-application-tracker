@@ -1,0 +1,272 @@
+{
+  "name": "Job Application Auto-Tracker",
+  "nodes": [
+    {
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "receive",
+        "format": "full",
+        "filters": {
+          "query": "subject:\"application received\" OR subject:\"thank you for applying\" OR subject:\"application confirmation\" OR subject:\"offer letter\" OR subject:\"we received your application\"",
+          "includeSpamAndTrash": false,
+          "unreadOnly": true
+        },
+        "options": {
+          "markAsRead": true,
+          "downloadAttachments": false
+        },
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "credentials": {}
+    },
+    {
+      "id": "mime-decode",
+      "name": "Decode MIME Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const headers = {};\nfor (const h of $json.payload.headers) {\n  headers[h.name] = h.value;\n}\n\nfunction extractText(payload) {\n  const parts = payload.parts || [payload];\n  for (const part of parts) {\n    if (part.mimeType === \"text/plain\" && part.body?.data) {\n      return Buffer.from(part.body.data, \"base64url\").toString(\"utf-8\");\n    }\n    if (part.parts) {\n      const result = extractText(part);\n      if (result) return result;\n    }\n  }\n  if (payload.body?.data) {\n    return Buffer.from(payload.body.data, \"base64url\").toString(\"utf-8\");\n  }\n  return \"\";\n}\n\nconst body = extractText($json.payload);\nconst ts = $json.internalDate\n  ? new Date(parseInt($json.internalDate)).toISOString().split(\"T\")[0]\n  : new Date().toISOString().split(\"T\")[0];\n\nreturn [{\n  json: {\n    subject: headers[\"Subject\"] || \"\",\n    sender: headers[\"From\"] || \"\",\n    messageId: headers[\"Message-ID\"] || \"\",\n    date: ts,\n    body: body\n  }\n}];"
+      },
+      "credentials": {}
+    },
+    {
+      "id": "gemini-request",
+      "name": "Gemini API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"contents\": [{\"parts\": [{\"text\": \"You are an email parser for a job application tracker. Extract fields and return ONLY valid JSON. No markdown, no backticks, no explanation.\\n\\nEmail Subject: {{ $json.subject }}\\nFrom: {{ $json.sender }}\\nDate: {{ $json.date }}\\nBody:\\n{{ $json.body }}\\n\\nReturn STRICT JSON:\\n{\\n  \\\"company_name\\\": \\\"company name, capitalized\\\",\\n  \\\"job_role\\\": \\\"job title\\\",\\n  \\\"date\\\": \\\"YYYY-MM-DD or null\\\",\\n  \\\"email_type\\\": \\\"offer_letter | interview_invitation | application_received | rejection | other\\\",\\n  \\\"summary\\\": \\\"one-line, 10-15 words\\\"\\n}\"}],\n    \"systemInstruction\": {\"parts\": [{\"text\": \"You extract job application data from emails and return strict JSON.\"}]}\n  }],\n  \"generationConfig\": {\n    \"response_mime_type\": \"application/json\",\n    \"temperature\": 0.1\n  }\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {}
+    },
+    {
+      "id": "parse-validate",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const candidates = $json.candidates || [];\nconst raw = candidates[0]?.content?.parts?.[0]?.text\n  || $json.text\n  || $json.response\n  || \"{}\";\n\nlet cleaned = raw.replace(/```json?\\n?/g, \"\").replace(/\\n?```/g, \"\").trim();\nconst match = cleaned.match(/\\{[\\s\\S]*\\}/);\nlet parsed = {};\nif (match) {\n  try {\n    parsed = JSON.parse(match[0]);\n  } catch (e) {\n    parsed = {};\n  }\n}\n\nconst validTypes = [\"offer_letter\", \"interview_invitation\", \"application_received\", \"rejection\", \"other\"];\n\nreturn [{\n  json: {\n    company_name: (parsed.company_name || \"\").trim() || \"Unknown\",\n    job_role: (parsed.job_role || \"\").trim() || \"Unknown\",\n    application_date: parsed.date || $json.date || null,\n    email_subject: $json.subject || \"\",\n    sender_email: $json.sender || \"\",\n    message_id: $json.messageId || \"\",\n    email_type: validTypes.includes(parsed.email_type) ? parsed.email_type : \"other\",\n    summary: (parsed.summary || \"\").trim() || \"\"\n  }\n}];"
+      },
+      "credentials": {}
+    },
+    {
+      "id": "if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.company_name }}",
+              "operation": "notEqual",
+              "value2": "Unknown"
+            }
+          ]
+        }
+      },
+      "credentials": {}
+    },
+    {
+      "id": "sheets-append",
+      "name": "Append to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company Name": "={{ $json.company_name }}",
+            "Job Role": "={{ $json.job_role }}",
+            "Application Date": "={{ $json.application_date }}",
+            "Email Subject": "={{ $json.email_subject }}",
+            "Sender Email": "={{ $json.sender_email }}",
+            "Message ID": "={{ $json.message_id }}",
+            "Alert Sent": "Yes",
+            "Email Type": "={{ $json.email_type }}",
+            "Summary": "={{ $json.summary }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {}
+    },
+    {
+      "id": "telegram-send",
+      "name": "Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1750,
+        200
+      ],
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "",
+        "text": "{{ $json.email_type == \"offer_letter\" ? \"\ud83c\udf89\" : $json.email_type == \"interview_invitation\" ? \"\ud83c\udfaf\" : $json.email_type == \"rejection\" ? \"\u274c\" : \"\ud83d\udccb\" }} *{{ $json.email_type }}*\n\nCompany: {{ $json.company_name }}\nRole: {{ $json.job_role }}\nDate: {{ $json.application_date }}{{ $json.summary ? \"\\n\\n\" + $json.summary : \"\" }}\n\nLogged to Google Sheets.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {}
+    },
+    {
+      "id": "noop-end",
+      "name": "End",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Decode MIME Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decode MIME Body": {
+      "main": [
+        [
+          {
+            "node": "Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini API": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Append to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram": {
+      "main": [
+        [
+          {
+            "node": "End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}
