@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="flask" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="ai" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="sheets" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <linearGradient id="notif" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="gmail" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f87171"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#38bdf8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="700" fill="url(#bg)" rx="16"/>
+
+  <!-- Title -->
+  <text x="500" y="45" text-anchor="middle" fill="#f1f5f9" font-size="24" font-weight="bold">Job Application Auto-Tracker Architecture</text>
+  <text x="500" y="68" text-anchor="middle" fill="#94a3b8" font-size="13">Flask · Gemini AI · Google Sheets · Telegram/Slack/WhatsApp  |  $0 Infrastructure</text>
+
+  <!-- Layer 1: Trigger -->
+  <rect x="380" y="100" width="240" height="44" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="500" y="126" text-anchor="middle" fill="#38bdf8" font-size="13" font-weight="bold">⏱  cron-job.org (every 15 min)</text>
+
+  <!-- Arrow: cron → Flask -->
+  <line x1="500" y1="144" x2="500" y2="178" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-active)" stroke-dasharray="4,3"/>
+  <text x="510" y="164" fill="#64748b" font-size="10">GET /cron/{secret}</text>
+
+  <!-- Layer 2: Flask -->
+  <rect x="340" y="180" width="320" height="52" rx="8" fill="#0f172a" stroke="url(#flask)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="500" y="204" text-anchor="middle" fill="#38bdf8" font-size="14" font-weight="bold">🌐  Flask App (webui.py)</text>
+  <text x="500" y="222" text-anchor="middle" fill="#94a3b8" font-size="11">OAuth · Scheduler · Per-user Token Isolation</text>
+
+  <!-- Branch: Flask → Gmail (left) and Flask → AI (right) -->
+  <line x1="440" y1="232" x2="250" y2="290" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="560" y1="232" x2="750" y2="290" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="280" y="260" fill="#94a3b8" font-size="10">Gmail API · unread emails</text>
+  <text x="680" y="260" fill="#a78bfa" font-size="10">structured JSON extraction</text>
+
+  <!-- Layer 3 Left: Gmail -->
+  <rect x="150" y="292" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#gmail)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="250" y="315" text-anchor="middle" fill="#f87171" font-size="13" font-weight="bold">📥  Gmail API</text>
+  <text x="250" y="332" text-anchor="middle" fill="#94a3b8" font-size="10">Fetch · Parse · Mark as read</text>
+
+  <!-- Layer 3 Right: AI -->
+  <rect x="650" y="292" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#ai)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="750" y="315" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="bold">🤖  AI Engine</text>
+  <text x="750" y="332" text-anchor="middle" fill="#94a3b8" font-size="10">Gemini · Groq · NVIDIA</text>
+
+  <!-- Arrow: Gmail → Parser -->
+  <line x1="250" y1="342" x2="400" y2="410" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <!-- Arrow: AI → Parser -->
+  <line x1="750" y1="342" x2="600" y2="410" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="310" y="380" fill="#94a3b8" font-size="10">raw email body</text>
+  <text x="640" y="380" fill="#a78bfa" font-size="10">AI JSON → regex fallback</text>
+
+  <!-- Layer 4: Parser -->
+  <rect x="350" y="412" width="300" height="50" rx="8" fill="#0f172a" stroke="url(#notif)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="500" y="435" text-anchor="middle" fill="#fb923c" font-size="13" font-weight="bold">🔍  Parser (AI + Regex)</text>
+  <text x="500" y="452" text-anchor="middle" fill="#94a3b8" font-size="10">Company · Role · Date · Type · Summary · Location · Salary</text>
+
+  <!-- Branch: Parser → three destinations -->
+  <line x1="400" y1="462" x2="200" y2="510" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="462" x2="500" y2="510" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="600" y1="462" x2="800" y2="510" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Layer 5: Three parallel boxes -->
+  <!-- Dedup -->
+  <rect x="100" y="515" width="200" height="50" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="200" y="538" text-anchor="middle" fill="#cbd5e1" font-size="13" font-weight="bold">🛡  Dedup Check</text>
+  <text x="200" y="555" text-anchor="middle" fill="#94a3b8" font-size="10">Message-ID cache</text>
+
+  <!-- Sheets -->
+  <rect x="400" y="515" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#sheets)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="500" y="538" text-anchor="middle" fill="#4ade80" font-size="13" font-weight="bold">📊  Google Sheets</text>
+  <text x="500" y="555" text-anchor="middle" fill="#94a3b8" font-size="10">Auto-created · 13 columns</text>
+
+  <!-- Notifier -->
+  <rect x="700" y="515" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#notif)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="800" y="538" text-anchor="middle" fill="#fb923c" font-size="13" font-weight="bold">📲  Notifier</text>
+  <text x="800" y="555" text-anchor="middle" fill="#94a3b8" font-size="10">Telegram · Slack · WhatsApp</text>
+
+  <!-- Layer 6: Notifications detail -->
+  <rect x="660" y="590" width="280" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" filter="url(#shadow)"/>
+  <text x="800" y="615" text-anchor="middle" fill="#cbd5e1" font-size="11">📱 Telegram DM  |  💬 Slack Webhook  |  📞 WhatsApp CallMeBot</text>
+  <line x1="800" y1="565" x2="800" y2="590" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Footer -->
+  <text x="500" y="680" text-anchor="middle" fill="#64748b" font-size="11">Live: SachinKumarChaudhary.pythonanywhere.com  ·  GitHub: github.com/SachinKumarChaudhary/job-application-tracker</text>
+</svg>
