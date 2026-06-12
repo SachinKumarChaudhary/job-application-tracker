@@ -143,11 +143,11 @@
   <text x="500" y="460" text-anchor="middle" fill="#94a3b8" font-size="10">Company · Role · Date · Type · Summary · Location · Salary</text>
 
   <!-- Branch: Parser → three destinations (color-coded) -->
-  <line x1="400" y1="470" x2="200" y2="520" stroke="#2dd4bf" stroke-width="2" marker-end="url(#arrow-teal)"/>
+  <line x1="400" y1="470" x2="250" y2="520" stroke="#2dd4bf" stroke-width="2" marker-end="url(#arrow-teal)"/>
   <line x1="500" y1="470" x2="500" y2="520" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-green)"/>
-  <line x1="600" y1="470" x2="800" y2="520" stroke="#fb923c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="600" y1="470" x2="750" y2="520" stroke="#fb923c" stroke-width="2" marker-end="url(#arrow-orange)"/>
 
-  <g transform="translate(280, 490)" filter="url(#label-shadow)">
+  <g transform="translate(250, 490)" filter="url(#label-shadow)">
     <use href="#pill-teal"/>
     <text x="0" y="3" text-anchor="middle" fill="#2dd4bf" font-size="10">dedup check</text>
   </g>
@@ -155,33 +155,33 @@
     <use href="#pill-green"/>
     <text x="0" y="3" text-anchor="middle" fill="#4ade80" font-size="10">append to sheet</text>
   </g>
-  <g transform="translate(720, 490)" filter="url(#label-shadow)">
+  <g transform="translate(700, 490)" filter="url(#label-shadow)">
     <use href="#pill-orange"/>
     <text x="0" y="3" text-anchor="middle" fill="#fb923c" font-size="10">send alert</text>
   </g>
 
   <!-- ===== LAYER 5: Three parallel boxes ===== -->
-  <!-- Dedup — now teal gradient -->
-  <rect x="100" y="525" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#dedup)" stroke-width="2" filter="url(#shadow)"/>
-  <text x="200" y="548" text-anchor="middle" fill="#2dd4bf" font-size="13" font-weight="bold">🛡  Dedup Check</text>
-  <text x="200" y="565" text-anchor="middle" fill="#94a3b8" font-size="10">Message-ID cache</text>
+  <!-- Dedup — aligned with Gmail API (x=150) -->
+  <rect x="150" y="525" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#dedup)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="250" y="548" text-anchor="middle" fill="#2dd4bf" font-size="13" font-weight="bold">🛡  Dedup Check</text>
+  <text x="250" y="565" text-anchor="middle" fill="#94a3b8" font-size="10">Message-ID cache</text>
 
   <!-- Sheets — green gradient -->
   <rect x="400" y="525" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#sheets)" stroke-width="2" filter="url(#shadow)"/>
   <text x="500" y="548" text-anchor="middle" fill="#4ade80" font-size="13" font-weight="bold">📊  Google Sheets</text>
   <text x="500" y="565" text-anchor="middle" fill="#94a3b8" font-size="10">Auto-created · 13 columns</text>
 
-  <!-- Notifier — orange gradient -->
-  <rect x="700" y="525" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#notif)" stroke-width="2" filter="url(#shadow)"/>
-  <text x="800" y="548" text-anchor="middle" fill="#fb923c" font-size="13" font-weight="bold">📲  Notifier</text>
-  <text x="800" y="565" text-anchor="middle" fill="#94a3b8" font-size="10">Telegram · Slack · WhatsApp</text>
+  <!-- Notifier — aligned with AI Engine (x=650) -->
+  <rect x="650" y="525" width="200" height="50" rx="8" fill="#0f172a" stroke="url(#notif)" stroke-width="2" filter="url(#shadow)"/>
+  <text x="750" y="548" text-anchor="middle" fill="#fb923c" font-size="13" font-weight="bold">📲  Notifier</text>
+  <text x="750" y="565" text-anchor="middle" fill="#94a3b8" font-size="10">Telegram · Slack · WhatsApp</text>
 
   <!-- Arrow: Notifier → Notification detail -->
-  <line x1="800" y1="575" x2="800" y2="600" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <line x1="750" y1="575" x2="750" y2="600" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
 
-  <!-- ===== LAYER 6: Notifications detail — now orange with the right stroke -->
-  <rect x="660" y="600" width="280" height="40" rx="8" fill="#1e293b" stroke="#fb923c" stroke-width="1.5" filter="url(#shadow)"/>
-  <text x="800" y="625" text-anchor="middle" fill="#fbbf24" font-size="11">📱 Telegram DM  ·  💬 Slack Webhook  ·  📞 WhatsApp</text>
+  <!-- ===== LAYER 6: Notifications detail ===== -->
+  <rect x="610" y="600" width="280" height="40" rx="8" fill="#1e293b" stroke="#fb923c" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="750" y="625" text-anchor="middle" fill="#fbbf24" font-size="11">Telegram DM  ·  Slack Webhook  ·  WhatsApp</text>
 
   <!-- Footer -->
   <text x="500" y="695" text-anchor="middle" fill="#64748b" font-size="11">Live: SachinKumarChaudhary.pythonanywhere.com  ·  GitHub: github.com/SachinKumarChaudhary/job-application-tracker</text>
