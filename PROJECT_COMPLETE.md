@@ -18,6 +18,7 @@
 5. [Approach 4: Flask Redux + PythonAnywhere (Session 7)](#5-approach-4-flask-redux--pythonanywhere-session-7)
 6. [Testing & Polish (Session 7-8)](#6-testing--polish-session-7-8)
 7. [Documentation & GitHub (Session 9)](#7-documentation--github-session-9)
+8. [AI Migration & Sheet Formatting (Session 10)](#7b-ai-migration--sheet-formatting-session-10)
 
 **Part II — Technical Reference**
 8. [Architecture (Final)](#8-architecture-final)
@@ -306,11 +307,68 @@ Created a reusable **documentation skill** at `~/.config/opencode/skills/documen
 
 ---
 
-# Part II — Technical Reference
+## 7b. AI Migration & Sheet Formatting (Session 10)
+
+**Date:** June 11-12, 2026
+
+### AI Provider: Gemini → NVIDIA
+
+Switched from Gemini to NVIDIA after repeated 429 rate limit errors:
+
+| Provider | Status | Reason |
+|---|---|---|
+| Gemini (old key) | ❌ 429 | Same Google Cloud project |
+| Gemini (new key) | ❌ 429 | Same Google Cloud project (project-level quota) |
+| **NVIDIA** | ✅ Working | `nvapi-CWHE9Q...` — no rate limiting |
+
+**Config:** `AI_PROVIDER=nvidia`, `AI_MODEL=meta/llama-3.1-70b-instruct`
+
+### Sheet Schema Expanded
+
+Added 5 new columns (was 8, now 13):
+
+| Col | Header | Added |
+|---|---|---|
+| I | Summary | AI-generated 2-3 sentence summary |
+| J | Location | Extracted by AI (e.g., "Bangalore, India") |
+| K | Salary | Extracted by AI (e.g., "$120k/yr") |
+| L | Next Step | Enum: interview, offer, follow_up, waiting, rejected, none |
+| M | Parser | "NVIDIA", "Gemini", "Groq", or "Regex" |
+
+### Prompt Fix
+
+Fixed `KeyError: '\n  "company_name"'` in AI prompt — unescaped `{` `}` in f-string → escaped as `{{` `}}`.
+
+### Sheet Formatting
+
+Added `format_sheet(email)` function and `/format-sheet` endpoint that beautifies the Google Sheet:
+- **Header row:** Dark navy background (#2a4073), white bold 11pt text, centered
+- **Bottom border:** 2px solid accent line under header
+- **Alternating rows:** Light blue/white banding
+- **Data rows:** 10pt font, text wrapped, vertically centered
+- **Date column:** Center-aligned
+- **Auto-resized columns + frozen header row**
+
+### OAuth Scope Mismatch Recovery
+
+Added scope-mismatch detection in `get_creds()` — deletes corrupted token file and forces re-auth when scope changes (e.g., after removing `include_granted_scopes`).
+
+### Change Channel Fix
+
+Fixed "Change Channel" dropdown not appearing — now deletes `notification_channel` key instead of setting to `"none"`.
+
+### Bug Fixes
+
+- `str.format()` `KeyError` in AI prompt → `{{` `}}` escaping
+- Indentation error in `webui.py` (range="A:M" line) — fixed 8-space indent
+- Banded range conflict on re-format — delete existing banding before re-adding
 
 ## 8. Architecture (Final)
 
 ### System Diagram
+
+> **Visual version:** See `assets/architecture.svg` — 7-color scheme, pill labels, drop shadows.
+> Also: `assets/how-it-works.svg` (user flow), `assets/hero-banner.svg` (README banner), `assets/badges.svg` (custom dark badges).
 
 ```
                     ┌─────────────────────────┐
@@ -326,7 +384,7 @@ Created a reusable **documentation skill** at `~/.config/opencode/skills/documen
                              │                            │
                              ▼                            ▼
                     ┌────────────────────┐     ┌─────────────────────┐
-                    │   Gemini AI        │     │   Regex Parser      │
+                    │   NVIDIA AI        │     │   Regex Parser      │
                     │  (primary parse)   │────▶│  (fallback)         │
                     └────────┬───────────┘     └──────────┬──────────┘
                              │                            │
@@ -343,7 +401,7 @@ Created a reusable **documentation skill** at `~/.config/opencode/skills/documen
 Gmail API ──fetch 20 matching emails──► Poller
     │
     ▼
-Parser ──try AI first──► Gemini/Groq/NVIDIA ──JSON──► Parser
+Parser ──try AI first──► NVIDIA ──JSON──► Parser
     │                                │
     │         if AI fails            │
     └─────regex fallback─────────────┘
@@ -355,7 +413,7 @@ Validator ──is company_name valid?──► skip if not
 Dedup ──Message-ID in sheet?──► skip if yes
     │
     ▼
-Sheets ──append row A-J──► Google Sheets
+Sheets ──append row A-M──► Google Sheets
     │
     ▼
 Notifier ──send alert──► Telegram / Slack / WhatsApp
@@ -368,11 +426,11 @@ Mark Read ──remove UNREAD label──► Gmail
 
 | Component | File | Lines | Role |
 |---|---|---|---|
-| Flask app | `webui.py` | 563 | Routes, OAuth, scheduler, per-user polling |
+| Flask app | `webui.py` | 686 | Routes, OAuth, scheduler, per-user polling, sheet formatting |
 | Poller | `src/poller.py` | 85 | Gmail fetch, header extraction, body decode |
-| Parser | `src/parser.py` | 183 | Company/role extraction, type classification |
-| AI layer | `src/ai.py` | 126 | Gemini/Groq/NVIDIA API calls |
-| Models | `src/models.py` | 67 | Pydantic JobApplication |
+| Parser | `src/parser.py` | 192 | Company/role extraction, type classification, AI integration |
+| AI layer | `src/ai.py` | 129 | NVIDIA/Gemini/Groq API calls |
+| Models | `src/models.py` | 82 | Pydantic JobApplication (13 fields) |
 | Notifier | `src/notifier.py` | 89 | Telegram/Slack/WhatsApp/Pushover |
 | Sheets | `src/sheets_writer.py` | 47 | Google Sheets CRUD |
 | Dedup | `src/duplicate_checker.py` | 27 | Message-ID cache |
@@ -387,7 +445,7 @@ Mark Read ──remove UNREAD label──► Gmail
 
 | File | Lines | Role |
 |---|---|---|
-| `webui.py` | 563 | Flask app — routes, OAuth, scheduler, per-user polling |
+| `webui.py` | 686 | Flask app — routes, OAuth, scheduler, per-user polling, sheet formatting |
 | `wsgi.py` | 11 | PythonAnywhere WSGI bridge |
 
 ### Source Modules (`src/`)
@@ -398,8 +456,8 @@ Mark Read ──remove UNREAD label──► Gmail
 | `main.py` | 61 | `OfferTracker` class — orchestrates one poll cycle |
 | `poller.py` | 85 | Gmail API fetch, header extraction, body decode, mark-as-read |
 | `parser.py` | 183 | Email parsing — company/role extraction, type classification, date parsing |
-| `ai.py` | 126 | AI provider abstraction — Gemini, Groq, NVIDIA API calls |
-| `models.py` | 67 | Pydantic `JobApplication` model — validation, sheet rows, alert text |
+| `ai.py` | 129 | AI provider abstraction — Gemini, Groq, NVIDIA API calls |
+| `models.py` | 82 | Pydantic `JobApplication` model — validation, sheet rows (13 cols), alert text |
 | `notifier.py` | 89 | Multi-channel notification dispatch |
 | `sheets_writer.py` | 47 | Google Sheets CRUD — auto-create, append, dedup |
 | `duplicate_checker.py` | 27 | Message-ID dedup cache |
@@ -435,12 +493,23 @@ Mark Read ──remove UNREAD label──► Gmail
 
 | File | Size | Purpose |
 |---|---|---|
-| `README.md` | 6.7K | Quickstart, badges, architecture, config, deployment |
+| `README.md` | ~9K | Quickstart, custom SVG badges, hero banner, architecture, config, deployment |
 | `CASE_STUDY.md` | 46K | Narrative case study for hiring managers |
 | `PROJECT_REFERENCE.md` | 25K | Standalone technical reference |
 | `PROJECT_COMPLETE.md` | — | This file — single A-Z reference |
 | `docs/n8n-workflow.md` | 5.5K | n8n workflow breakdown, code, why rejected |
+| `docs/DEVICE_ARCHITECTURE.md` | 3K | Device hardware, OS, env spec |
+| `docs/linkedin-post-strategy.md` | 4K | LinkedIn viral post strategy (2026 algorithm) |
 | `GITHUB.md` | 1K | Public Git info for contributors |
+
+### Visual Assets
+
+| File | Size | Purpose |
+|---|---|---|
+| `assets/hero-banner.svg` | 3K | Dark gradient banner — title, tagline, stat badges |
+| `assets/badges.svg` | 4K | Custom dark-themed SVG badges (license, python, tests, hosting, AI, cost) |
+| `assets/architecture.svg` | 8K | Full system architecture diagram — 7-color scheme, pill labels, shadows |
+| `assets/how-it-works.svg` | 4K | Visual flow: User → OAuth → Gmail → Parser → Sheets + Alerts |
 
 ---
 
@@ -521,6 +590,7 @@ This allows multiple users to have independent Gmail + Sheets sessions. Token au
 | GET | `/send-test-email` | Send self-addressed test application email |
 | POST | `/test-notification` | Send test notification on configured channel |
 | POST | `/save-whatsapp-apikey` | Save WhatsApp API key after activation |
+| GET | `/format-sheet` | Beautify Google Sheet (header style, banding, borders, auto-resize) |
 
 ### Status
 
@@ -729,11 +799,11 @@ All config is loaded from `.env` by `src/config.py`.
 
 | Variable | Default | Options |
 |---|---|---|
-| `AI_PROVIDER` | `none` | `gemini`, `groq`, `nvidia`, `none` |
-| `AI_MODEL` | `gemini-2.0-flash` | Model name for provider |
-| `GEMINI_API_KEY` | — | Required if `AI_PROVIDER=gemini` |
+| `AI_PROVIDER` | `nvidia` | `nvidia` (primary), `gemini`, `groq`, `none` |
+| `AI_MODEL` | `meta/llama-3.1-70b-instruct` | Model name for provider |
+| `GEMINI_API_KEY` | — | Required if `AI_PROVIDER=gemini` (was deprecated — 429 errors) |
 | `GROQ_API_KEY` | — | Required if `AI_PROVIDER=groq` |
-| `NVIDIA_API_KEY` | — | Required if `AI_PROVIDER=nvidia` |
+| `NVIDIA_API_KEY` | — | Required if `AI_PROVIDER=nvidia` (currently active) |
 
 ### Security
 
@@ -869,7 +939,8 @@ python webui.py   # http://localhost:8080
 | Dashboard charts | Medium | Application trends, response rates, company breakdown |
 | CSV/Excel export | Low | One-click data export |
 | AI categorization | Low | Auto-tag by industry, role level, location |
-| Multi-language | Low | Parse Hindi, Spanish emails via Gemini |
+| Parser accuracy | Medium | Fine-tune regex + AI for Indian job market (off-campus, hiring, walk-in) |
+| Multi-language | Low | Parse Hindi, Spanish emails via AI |
 | Email reply detection | Low | Detect company follow-ups |
 | Custom webhook | Low | Pipe to Zapier/Make/n8n |
 
@@ -890,6 +961,8 @@ python webui.py   # http://localhost:8080
 | **7** | Jun 11 | ~Morning | Returned to Flask — merged n8n AI code, PythonAnywhere deploy, WhatsApp/Slack |
 | **8** | Jun 11 | ~Late morning | 11 tests passing, session history extraction, error handling polish |
 | **9** | Jun 11 | ~Afternoon | Documentation — README, CASE_STUDY.pdf, GitHub push, documentation skill |
+| **10** | Jun 11-12 | ~Evening | AI migration Gemini→NVIDIA, sheet format beautification, OAuth scope fix, 13-col schema |
+| **11** | Jun 12 | ~Morning | Visual overhaul — custom SVG badges, hero banner, architecture diagram (7-color), how-it-works flow, designer skill created |
 
 ## Appendix B: Why Each Approach Was Chosen/Rejected
 
@@ -931,8 +1004,11 @@ subject:"we received your application"
 | F | Message ID | Gmail header (dedup key) |
 | G | Alert Sent | Always "Yes" |
 | H | Email Type | Classifier (Offer/Interview/Received/Rejection/Other) |
-| I | Summary | AI only (empty for regex) |
-| J | Parser | "AI" or "Regex" |
+| I | Summary | AI generated (2-3 sentence description) |
+| J | Location | AI extracted (e.g., "Bangalore, India") |
+| K | Salary | AI extracted (e.g., "$120k/yr") |
+| L | Next Step | AI classified (interview/offer/follow_up/waiting/rejected/none) |
+| M | Parser | Provider name ("NVIDIA", "Gemini", "Groq", "Regex") |
 
 ## Appendix F: Dependencies
 
@@ -956,11 +1032,13 @@ pytest
 | **pydantic for models** | Built-in validation, serialization, and type hints; lightweight |
 | **gspread over raw Sheets API** | Higher-level API (auto-find sheet, append rows, col values); fewer lines |
 | **Per-user tokens (not single account)** | Each user connects their own Gmail; no central account needed |
-| **AI primary + regex fallback** | AI is more accurate (company/role/summary) but regex works when API is down |
+| **NVIDIA over Gemini** | Gemini hit 429 rate limits (project-level quota); NVIDIA (`meta/llama-3.1-70b-instruct`) works without rate limiting |
+| **AI primary + regex fallback** | AI is more accurate (company/role/location/salary/next_step) but regex works when API is down |
+| **Parser stores provider name** | Column M stores "NVIDIA"/"Gemini"/"Groq"/"Regex" — enables auditing which parser processed each entry |
 | **cron-job.org over in-app scheduler** | PythonAnywhere free tier sleeps; external ping wakes it |
 | **Single HTML file (no JS framework)** | Zero build step; deployable as-is; works without npm |
 | **Base64-encoded token filenames** | Safe for filesystem (no @ or / in filenames); reversible for debugging |
 
 ---
 
-*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-11.*
+*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-12 (Updated: Session 10 — NVIDIA migration, sheet formatting, 13-col schema).*
