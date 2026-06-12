@@ -132,7 +132,7 @@
     <use href="#pill-red"/>
     <text x="0" y="3" text-anchor="middle" fill="#f87171" font-size="10">raw email body</text>
   </g>
-  <g transform="translate(640, 385)" filter="url(#label-shadow)">
+  <g transform="translate(675, 385)" filter="url(#label-shadow)">
     <use href="#pill-purple"/>
     <text x="0" y="3" text-anchor="middle" fill="#a78bfa" font-size="10">AI JSON → regex fallback</text>
   </g>
@@ -147,7 +147,7 @@
   <line x1="500" y1="470" x2="500" y2="520" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-green)"/>
   <line x1="600" y1="470" x2="750" y2="520" stroke="#fb923c" stroke-width="2" marker-end="url(#arrow-orange)"/>
 
-  <g transform="translate(250, 490)" filter="url(#label-shadow)">
+  <g transform="translate(325, 490)" filter="url(#label-shadow)">
     <use href="#pill-teal"/>
     <text x="0" y="3" text-anchor="middle" fill="#2dd4bf" font-size="10">dedup check</text>
   </g>
@@ -155,7 +155,7 @@
     <use href="#pill-green"/>
     <text x="0" y="3" text-anchor="middle" fill="#4ade80" font-size="10">append to sheet</text>
   </g>
-  <g transform="translate(700, 490)" filter="url(#label-shadow)">
+  <g transform="translate(675, 490)" filter="url(#label-shadow)">
     <use href="#pill-orange"/>
     <text x="0" y="3" text-anchor="middle" fill="#fb923c" font-size="10">send alert</text>
   </g>
