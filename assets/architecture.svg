@@ -101,7 +101,7 @@
   <text x="500" y="222" text-anchor="middle" fill="#94a3b8" font-size="11">OAuth · Scheduler · Per-user Token Isolation</text>
 
   <!-- Branch: Flask → Gmail (left) and Flask → AI (right) -->
-  <line x1="440" y1="232" x2="250" y2="294" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <line x1="440" y1="232" x2="250" y2="294" stroke="#f87171" stroke-width="2" marker-end="url(#arrow-red)"/>
   <line x1="560" y1="232" x2="750" y2="294" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrow-purple)"/>
 
   <g transform="translate(295, 256)" filter="url(#label-shadow)">
