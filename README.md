@@ -1,17 +1,9 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/tests-11%20passing-brightgreen" alt="11 tests passing">
-  <img src="https://img.shields.io/badge/hosting-PythonAnywhere%20(free)-purple" alt="PythonAnywhere Free">
-  <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20NVIDIA-orange" alt="AI Providers">
-  <img src="https://img.shields.io/badge/cost-%240-brightgreen" alt="$0 budget">
-  <img src="https://img.shields.io/badge/status-live%20in%20production-success" alt="Production">
+  <img src="assets/hero-banner.svg" alt="Offer Tracker" width="800">
 </p>
 
-<h1 align="center">📋 Offer Tracker — Job Application Auto-Tracker</h1>
-
 <p align="center">
-  <em>Automatically track job applications from Gmail — extracts company, role, and type via AI + regex, logs to Google Sheets, and sends real-time alerts to Telegram/Slack/WhatsApp. <strong>Zero infrastructure cost.</strong></em>
+  <img src="assets/badges.svg" alt="badges" width="780">
 </p>
 
 <p align="center">
@@ -56,6 +48,25 @@ sequenceDiagram
     N->>U: Telegram DM / Slack / WhatsApp
     F->>G: Mark email as read
 ```
+
+<br>
+
+## How It Works
+
+<p align="center">
+  <img src="assets/how-it-works.svg" alt="How It Works" width="800">
+</p>
+
+1. **User signs in** with Google → OAuth grants Gmail + Sheets scope
+2. **User chooses notification** — Telegram, Slack, or WhatsApp
+3. **User sends a test email** to themselves with an application subject
+4. **Scheduler polls Gmail** every 15 min — matches application/offer subjects
+5. **Parser extracts** company, role, date, type:
+   - AI path: Gemini/Groq/NVIDIA returns structured JSON
+   - Regex path: 50+ company patterns, 15+ role patterns, keyword classifier
+6. **Logs to Google Sheets** — auto-created spreadsheet with 13 columns
+7. **Sends notification** — Telegram DM / Slack message / WhatsApp text
+8. **Marks as read** — email removed from UNREAD to avoid re-processing
 
 <br>
 
@@ -111,33 +122,6 @@ python webui.py        # runs at http://localhost:5000
 | `GROQ_API_KEY` | ⚠️ | Required if `AI_PROVIDER=groq` |
 | `NVIDIA_API_KEY` | ⚠️ | Required if `AI_PROVIDER=nvidia` |
 | `POLL_INTERVAL_MINUTES` | ❌ | Poll interval (default: 15) |
-
-<br>
-
-## How It Works
-
-```
-User Sign-in → OAuth Grant → Gmail Polling (15 min)
-                                      │
-                                      ▼
-                              AI Extraction (Gemini/Groq/NVIDIA)
-                                      │
-                            ┌─────────┴──────────┐
-                            ▼                    ▼
-                      Google Sheets          Telegram/Slack/WA
-                      (auto-created)         (instant alerts)
-```
-
-1. **User signs in** with Google → OAuth grants Gmail + Sheets scope
-2. **User chooses notification** — Telegram, Slack, or WhatsApp
-3. **User sends a test email** to themselves with an application subject
-4. **Scheduler polls Gmail** every 15 min — matches application/offer subjects
-5. **Parser extracts** company, role, date, type:
-   - AI path: Gemini/Groq/NVIDIA returns structured JSON
-   - Regex path: 50+ company patterns, 15+ role patterns, keyword classifier
-6. **Logs to Google Sheets** — auto-created spreadsheet with 13 columns
-7. **Sends notification** — Telegram DM / Slack message / WhatsApp text
-8. **Marks as read** — email removed from UNREAD to avoid re-processing
 
 <br>
 
