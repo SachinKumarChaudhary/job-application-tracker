@@ -20,7 +20,7 @@
 7. [Documentation & GitHub (Session 9)](#7-documentation--github-session-9)
 8. [AI Migration & Sheet Formatting (Session 10)](#7b-ai-migration--sheet-formatting-session-10)
 9. [Discord, Pipeline & Indian Market (Session 12)](#7c-session-12--discord-pipeline--indian-market-tuning-jun-12)
-10. [Polish & Reliability (Session 11)](#7d-polish--reliability-session-11)
+10. [Polish & Reliability + Test Notification Fix (Session 11)](#7d-polish--reliability-session-11)
 
 **Part II — Technical Reference**
 8. [Architecture (Final)](#8-architecture-final)
@@ -418,13 +418,17 @@ Expanded the email type system from 5 to 8 pipeline stages:
 
 **Cache-Control headers:** Added `@app.after_request` handler that sets `Cache-Control: no-store` on all responses, preventing the callback URL from being cached by the browser.
 
+**Test notification dispatches all channels:** The `test_notification` route previously only handled `slack`, `telegram`, and `whatsapp` (CallMeBot). `discord`, `whatsapp_cloud`, `twilio_whatsapp`, and `pushover` silently did nothing. Fixed by replacing the hand-rolled channel dispatch with `notify_single()` from `src/notifier.py` (which handles all 8 channels). Also handled the JSON/HTML split: the Home tab uses HTMX (expects HTML), the Alerts tab buttons call `testNotification()` JS (expects JSON).
+
+**Visible action feedback:** `send_test_email_route`, `trigger`, and `test_notification` now pass `alert_message` to the dashboard template. Errors and successes appear as a colored banner at the top of the dashboard instead of being silently swallowed into logs.
+
 ### File Structure Changes
 
 | File | Lines (Session 11) | Key Changes |
 |---|---|---|
-| `webui.py` | ~900 | `normalize_email()`, updated `get_user_email()`, `get_user_prefs()`, `set_user_pref()`, `get_creds()`, `save_prefs_route`, callback redirect, `@app.after_request` Cache-Control handler |
-| `templates/index.html` | ~780 | Restored Material Symbols CDN, CSS classes, font-variation-settings JS; replaced briefcase→description; restored theme toggle ligatures |
-| `templates/_dashboard.html` | ~20 | "Notifications disabled" card for `none` channel in Alerts tab |
+| `webui.py` | ~915 | `normalize_email()`, updated `get_user_email()`, `get_user_prefs()`, `set_user_pref()`, `get_creds()`, `save_prefs_route`, callback redirect, `@app.after_request` Cache-Control handler, `notify_single()` replaces hand-rolled dispatch, `alert_message` feedback on all action routes |
+| `templates/index.html` | ~780 | Restored Material Symbols CDN, CSS classes, font-variation-settings JS; replaced briefcase→description; restored theme toggle ligatures; `testNotification()` JS handles `d.message` + `d.error` for JSON responses |
+| `templates/_dashboard.html` | ~335 | "Notifications disabled" card for `none` channel in Alerts tab; `alert_message` banner at top of dashboard |
 
 ## 8. Architecture (Final)
 
@@ -1004,6 +1008,9 @@ python webui.py   # http://localhost:8080
 |---|---|
 | Briefcase icon didn't render on user's device | Replaced `briefcase` ligature with `description` (document icon) — renders reliably across all devices |
 | Browser caching OAuth callback URL caused "Session expired" on viewport retoggle | Added `@app.after_request` handler setting `Cache-Control: no-store` on all responses; changed error render to `redirect("/")` |
+| Test Notification button silently did nothing for discord/whatsapp_cloud/twilio/pushover | Replaced hand-rolled channel dispatch with `notify_single()` — handles all 8 channels |
+| Alerts tab Test buttons gave "Error sending test" toast | Route now returns JSON for `fetch()` calls, HTML for HTMX calls |
+| No visible feedback on Check Now / Send Test Email / Test Notification | Added `alert_message` context variable + colored banner in dashboard template |
 
 ### Bugs
 
@@ -1056,7 +1063,7 @@ python webui.py   # http://localhost:8080
 | **8** | Jun 11 | ~Late morning | 11 tests passing, session history extraction, error handling polish |
 | **9** | Jun 11 | ~Afternoon | Documentation — README, CASE_STUDY.pdf, GitHub push, documentation skill |
 | **10** | Jun 11-12 | ~Evening | AI migration Gemini→NVIDIA, sheet format beautification, OAuth scope fix, 13-col schema |
-| **11** | Jun 13 | ~Morning | Frontend polish — Material Symbols restored, briefcase→description icon, theme toggle ligature fix, nav fill JS restored, "none" channel card. Backend — email normalization, Cache-Control headers, callback redirect fix |
+| **11** | Jun 13 | ~Morning → Afternoon | Frontend polish — Material Symbols restored, briefcase→description icon, theme toggle ligature fix, nav fill JS restored, "none" channel card. Backend — email normalization, Cache-Control headers, callback redirect fix, `notify_single()` replaces hardcoded channel dispatch (fixes Test Notification for discord/whatsapp_cloud/twilio/pushover), visible error banner on all action buttons |
 | **12** | Jun 12 | ~Morning | Visual overhaul — custom SVG badges, hero banner, architecture diagram (7-color), how-it-works flow, designer skill created |
 | **13** | Jun 12 | ~Evening | Discord notifications, in-place sheet updates, two-pass AI pipeline, alias matching (60+), full status pipeline (8 stages), WhatsApp deprecated, Indian market tuning |
 
@@ -1147,4 +1154,4 @@ pytest
 
 ---
 
-*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-13 (Updated: Session 11 — frontend polish, email normalization, Cache-Control, Material Symbols).*
+*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-13 (Updated: Session 11 — test notification fix, visible error feedback, email normalization, Cache-Control, Material Symbols).*
