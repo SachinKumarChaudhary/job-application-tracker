@@ -15,7 +15,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import Flow
 from src.config import logger, POLL_INTERVAL_MINUTES, BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, CRON_SECRET, GMAIL_QUERY
-from src.notifier import _send_slack_webhook, _send_whatsapp_callmebot, _send_telegram
+from src.notifier import notify_single
 import requests as http_requests
 
 app = Flask(__name__)
@@ -457,6 +457,7 @@ def _get_dashboard_context(email: str) -> dict:
         telegram_bot_username=TELEGRAM_BOT_USERNAME,
         has_telegram_bot=bool(TELEGRAM_BOT_TOKEN),
         scheduler_alive=_scheduler_alive["running"],
+        alert_message="",
     )
 
 
@@ -585,8 +586,16 @@ def trigger():
     email = get_user_email()
     if not email:
         return jsonify({"error": "Not authenticated"}), 401
-    run_poll(email)
-    return render_template("_dashboard.html", **_get_dashboard_context(email))
+    try:
+        run_poll(email)
+        _alert = f"Poll complete — {last_count.get(email, 0)} new entries"
+    except Exception as e:
+        _alert = f"Poll failed: {e}"
+        last_error[email] = str(e)
+        log(email, _alert)
+    ctx = _get_dashboard_context(email)
+    ctx["alert_message"] = _alert
+    return render_template("_dashboard.html", **ctx)
 
 
 @app.route("/verify-telegram")
@@ -694,9 +703,13 @@ def send_test_email_route():
     try:
         send_test_email(email)
         log(email, "Test email sent")
+        _alert = "Test email sent to your Gmail inbox!"
     except Exception as e:
-        log(email, f"Test email failed: {e}")
-    return render_template("_dashboard.html", **_get_dashboard_context(email))
+        _alert = f"Test email failed: {e}"
+        log(email, _alert)
+    ctx = _get_dashboard_context(email)
+    ctx["alert_message"] = _alert
+    return render_template("_dashboard.html", **ctx)
 
 
 @app.route("/status")
@@ -760,25 +773,23 @@ def test_notification():
         return jsonify({"error": "Not authenticated"}), 401
     prefs = get_user_prefs(email)
     channel = prefs.get("notification_channel")
-    msg = "✅ *Test notification* — your Offer Tracker is working!"
+    if not channel or channel == "none":
+        msg = "No notification channel configured"
+        log(email, msg)
+        return jsonify({"status": "error", "error": msg}), 400
+    msg = "Test notification — your Offer Tracker is working!"
     try:
-        if channel == "slack":
-            url = prefs.get("slack_webhook_url", "")
-            if url:
-                _send_slack_webhook(url, msg)
-        elif channel == "telegram":
-            chat_id = prefs.get("telegram_chat_id", "")
-            if chat_id:
-                _send_telegram(TELEGRAM_BOT_TOKEN, chat_id, msg)
-        elif channel == "whatsapp":
-            phone = prefs.get("whatsapp_phone", "")
-            apikey = prefs.get("whatsapp_apikey", "")
-            if phone and apikey:
-                _send_whatsapp_callmebot(phone, apikey, msg)
-        log(email, f"Test {channel} notification sent")
+        notify_single(channel, prefs, msg, email)
+        _alert = f"Test {channel} notification sent!"
+        log(email, _alert)
     except Exception as e:
-        log(email, f"Test notification failed: {e}")
-    return render_template("_dashboard.html", **_get_dashboard_context(email))
+        _alert = f"Test notification failed: {e}"
+        log(email, _alert)
+    if request.headers.get("HX-Request"):
+        ctx = _get_dashboard_context(email)
+        ctx["alert_message"] = _alert
+        return render_template("_dashboard.html", **ctx)
+    return jsonify({"status": _alert.startswith("Test") and "ok" or "error", "message": _alert})
 
 
 @app.route("/save-whatsapp-apikey", methods=["POST"])

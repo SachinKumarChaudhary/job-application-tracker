@@ -1,4 +1,14 @@
-<div id="dashboard" class="px-margin-page pt-stack-lg space-y-stack-lg">
+<div id="dashboard" class="px-margin-page pt-stack-lg space-y-stack-md">
+
+  {% if alert_message %}
+  <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-sm flex items-center gap-2 border-l-4
+    {% if 'failed' in alert_message.lower() or 'error' in alert_message.lower() %}border-l-error bg-error-container/10{% else %}border-l-success bg-success/10{% endif %}">
+    <span class="material-symbols-outlined text-[18px] {% if 'failed' in alert_message.lower() or 'error' in alert_message.lower() %}text-error{% else %}text-success{% endif %}">
+      {% if 'failed' in alert_message.lower() or 'error' in alert_message.lower() %}error{% else %}check_circle{% endif %}
+    </span>
+    <span>{{ alert_message }}</span>
+  </div>
+  {% endif %}
 
   <!-- ============ TAB: HOME ============ -->
   <section class="tab-section" id="section-home">

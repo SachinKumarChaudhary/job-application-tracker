@@ -486,8 +486,8 @@ async function testNotification() {
   try {
     const r = await fetch('/test-notification', { method: 'POST' });
     const d = await r.json();
-    if (d.status === 'ok') showToast('Test notification sent!');
-    else showToast('Error: ' + (d.error || 'Failed'));
+    if (d.status === 'ok') showToast(d.message || 'Test notification sent!');
+    else showToast('Error: ' + (d.message || d.error || 'Failed'));
   } catch(e) { showToast('Error sending test'); }
 }
 
