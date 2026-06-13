@@ -19,6 +19,8 @@
 6. [Testing & Polish (Session 7-8)](#6-testing--polish-session-7-8)
 7. [Documentation & GitHub (Session 9)](#7-documentation--github-session-9)
 8. [AI Migration & Sheet Formatting (Session 10)](#7b-ai-migration--sheet-formatting-session-10)
+9. [Discord, Pipeline & Indian Market (Session 12)](#7c-session-12--discord-pipeline--indian-market-tuning-jun-12)
+10. [Polish & Reliability (Session 11)](#7d-polish--reliability-session-11)
 
 **Part II — Technical Reference**
 8. [Architecture (Final)](#8-architecture-final)
@@ -309,59 +311,120 @@ Created a reusable **documentation skill** at `~/.config/opencode/skills/documen
 
 ## 7b. AI Migration & Sheet Formatting (Session 10)
 
-**Date:** June 11-12, 2026
+**[content unchanged through this section]**
 
-### AI Provider: Gemini → NVIDIA
+## 7c. Session 12 — Discord, Pipeline, & Indian Market Tuning (Jun 12)
 
-Switched from Gemini to NVIDIA after repeated 429 rate limit errors:
+**Date:** June 12, 2026
 
-| Provider | Status | Reason |
+### Discord Notifications
+
+Added Discord as a notification channel (webhook-based, ~1 min setup):
+
+- **Backend:** `_send_discord()` in `notifier.py` — POSTs JSON payload to Discord webhook URL
+- **Channel routing:** `"discord"` added to `notify_single()` channel switch
+- **Web UI:** Discord radio button in channel selector, Discord webhook URL field with how-to instructions, Discord section on dashboard (connected status, test/change buttons)
+- **Validation:** URL must start with `https://discord.com/api/webhooks/`
+- **Live on PA** after upload + reload
+
+### In-Place Sheet Updates
+
+Replaced always-append logic with intelligent in-place updates:
+
+- **Before:** Every email created a new row — same application produced multiple rows
+- **After:** `run_poll()` reads all existing rows, builds a `(company, role) → row_number` map
+- **Status priority system:** Each email type gets a numeric priority:
+  - `rejection` (1) → `other` (2) → `received` (3) → `assessment` (4) → `phone_screen` (5) → `interview` (6) → `tech_interview` (7) → `offer` (8)
+- When a new email matches an existing company+role, it only updates the row if the **new priority > old priority** (progress, never regression)
+- New entries with no existing match still append a fresh row
+
+### Two-Pass AI Pipeline
+
+Added `quick_is_job_email()` — a fast regex filter that runs **before** calling NVIDIA:
+
+- Uses 15+ keyword patterns (offer letter, interview, application, hiring, walk-in, off-campus, etc.)
+- Non-job emails skip the NVIDIA API call entirely — falls through to regex-only parsing
+- Saves API credits and speeds up processing for spam/newsletter emails
+
+### Alias-Based Company Matching
+
+Added `COMPANY_ALIASES` dict (60+ mappings) to `parser.py`:
+
+- Maps common ATS domains and company-specific domains to canonical names
+- `@tcsrecruit.com` → "TCS", `@goldmansachs.com` → "Goldman Sachs", `@byjus.com` → "BYJU'S"
+- Applied in `extract_company_from_address()` as the first-look fallback
+
+### Full Status Pipeline — 8 Stages
+
+Expanded the email type system from 5 to 8 pipeline stages:
+
+| Stage | Emoji | Priority | Regex Keywords |
+|---|---|---|---|
+| `application_received` | 📋 | 3 | `application received`, `thank you for applying` |
+| `assessment` | 📝 | 4 | `coding test`, `assessment`, `hackerrank` |
+| `phone_screen` | 📞 | 5 | `phone screen`, `video screen`, `introductory call` |
+| `interview_invitation` | 🎯 | 6 | `interview`, `schedule an interview`, `shortlisted` |
+| `technical_interview` | 💻 | 7 | `technical interview`, `coding round`, `system design` |
+| `offer_letter` | 🎉 | 8 | `offer letter`, `you are hired` |
+| `rejection` | ❌ | 1 | `regret to inform`, `not moving forward` |
+
+- AI prompt updated to recognize all 8 stages
+- Dashboard shows pipeline progress bar (green gradient from received→offer, red for rejected)
+- `classify_email_type()` regex updated with phone_screen and technical_interview detection
+
+### WhatsApp CallMeBot — Dead
+
+- Latest number `+34 644 59 90 43` — WhatsApp says "isn't on WhatsApp"
+- User contacted `@callmebot_com` on Telegram (last seen within a month) — no response
+- QuackAPI registration has internal error — deferred
+- Slack webhook setup has "No channels" picker issue — needs workspace refresh
+
+### File Structure Changes
+
+| File | Lines (Session 12) | Key Changes |
 |---|---|---|
-| Gemini (old key) | ❌ 429 | Same Google Cloud project |
-| Gemini (new key) | ❌ 429 | Same Google Cloud project (project-level quota) |
-| **NVIDIA** | ✅ Working | `nvapi-CWHE9Q...` — no rate limiting |
+| `webui.py` | 860 | Discord save-prefs, in-place update logic in `run_poll()`, `STATUS_PRIORITY` 8 stages |
+| `src/notifier.py` | +10 | `_send_discord()`, `"discord"` in `notify_single()` |
+| `src/parser.py` | 238 | `quick_is_job_email()`, `COMPANY_ALIASES`, updated `classify_email_type()` |
+| `src/ai.py` | 134 | Updated prompt with pipeline stages, phone_screen, technical_interview |
+| `src/models.py` | 86 | `phone_screen` 📞, `technical_interview` 💻 in EMAIL_TYPE_EMOJI/LABEL |
+| `templates/index.html` | 764 | Discord setup UI, pipeline progress bar, updated badge rendering |
 
-**Config:** `AI_PROVIDER=nvidia`, `AI_MODEL=meta/llama-3.1-70b-instruct`
+## 7d. Session 11 — Polish & Reliability (Jun 13)
 
-### Sheet Schema Expanded
+**Date:** June 13, 2026
 
-Added 5 new columns (was 8, now 13):
+### Frontend Fixes
 
-| Col | Header | Added |
+**Material Symbols restored:** Re-added Google Fonts CDN link with all axes (`FILL@0..1`). Restored `.material-symbols-outlined` CSS class with `font-family`, `font-feature-settings: 'liga'`, and `font-variation-settings`.
+
+**Briefcase icon → description:** The original `briefcase` ligature didn't render on the user's device. Replaced with `description` (document icon) for both the Entries tab and login page icon.
+
+**Theme toggle restored:** Uses `dark_mode`/`light_mode` Material Symbols ligatures (had been removed during earlier cleanup).
+
+**Nav tab fill restored:** JavaScript logic for `font-variation-settings: 'FILL' 1` on the active navigation tab was re-added.
+
+**"None" channel fix:** When user selects no notification channel, the app now saves `notification_channel: "none"` instead of deleting the key entirely. A "Notifications disabled" card appears in the Alerts tab for this state.
+
+### Backend Fixes
+
+**Email normalization:** Added `normalize_email()` function that lowercases and strips dots before `@gmail.com` (Google ignores dots in usernames). Applied to:
+- `get_user_email()` — normalizes session email, migrates old unnormalized prefs/tokens
+- `get_user_prefs()` — falls back to unnormalized key search if normalized key not found
+- `set_user_pref()` — merges old unnormalized prefs into normalized key
+- `get_creds()` — renames old token files to normalized path
+
+**Callback redirect:** Changed the "Session expired" error render in the OAuth callback to `redirect("/")` — prevents an error screen when the browser replays the callback URL.
+
+**Cache-Control headers:** Added `@app.after_request` handler that sets `Cache-Control: no-store` on all responses, preventing the callback URL from being cached by the browser.
+
+### File Structure Changes
+
+| File | Lines (Session 11) | Key Changes |
 |---|---|---|
-| I | Summary | AI-generated 2-3 sentence summary |
-| J | Location | Extracted by AI (e.g., "Bangalore, India") |
-| K | Salary | Extracted by AI (e.g., "$120k/yr") |
-| L | Next Step | Enum: interview, offer, follow_up, waiting, rejected, none |
-| M | Parser | "NVIDIA", "Gemini", "Groq", or "Regex" |
-
-### Prompt Fix
-
-Fixed `KeyError: '\n  "company_name"'` in AI prompt — unescaped `{` `}` in f-string → escaped as `{{` `}}`.
-
-### Sheet Formatting
-
-Added `format_sheet(email)` function and `/format-sheet` endpoint that beautifies the Google Sheet:
-- **Header row:** Dark navy background (#2a4073), white bold 11pt text, centered
-- **Bottom border:** 2px solid accent line under header
-- **Alternating rows:** Light blue/white banding
-- **Data rows:** 10pt font, text wrapped, vertically centered
-- **Date column:** Center-aligned
-- **Auto-resized columns + frozen header row**
-
-### OAuth Scope Mismatch Recovery
-
-Added scope-mismatch detection in `get_creds()` — deletes corrupted token file and forces re-auth when scope changes (e.g., after removing `include_granted_scopes`).
-
-### Change Channel Fix
-
-Fixed "Change Channel" dropdown not appearing — now deletes `notification_channel` key instead of setting to `"none"`.
-
-### Bug Fixes
-
-- `str.format()` `KeyError` in AI prompt → `{{` `}}` escaping
-- Indentation error in `webui.py` (range="A:M" line) — fixed 8-space indent
-- Banded range conflict on re-format — delete existing banding before re-adding
+| `webui.py` | ~900 | `normalize_email()`, updated `get_user_email()`, `get_user_prefs()`, `set_user_pref()`, `get_creds()`, `save_prefs_route`, callback redirect, `@app.after_request` Cache-Control handler |
+| `templates/index.html` | ~780 | Restored Material Symbols CDN, CSS classes, font-variation-settings JS; replaced briefcase→description; restored theme toggle ligatures |
+| `templates/_dashboard.html` | ~20 | "Notifications disabled" card for `none` channel in Alerts tab |
 
 ## 8. Architecture (Final)
 
@@ -395,28 +458,30 @@ Fixed "Change Channel" dropdown not appearing — now deletes `notification_chan
                     └────────────────────┘     └─────────────────────┘
 ```
 
-### Data Flow (one poll cycle)
+### Data Flow (one poll cycle — Session 13 update)
 
 ```
 Gmail API ──fetch 20 matching emails──► Poller
     │
     ▼
+quick_is_job_email() ──regex filter──► skip if non-job (no AI wasted)
+    │
+    ▼
 Parser ──try AI first──► NVIDIA ──JSON──► Parser
     │                                │
-    │         if AI fails            │
+    │         if AI fails/skipped    │
     └─────regex fallback─────────────┘
     │
     ▼
 Validator ──is company_name valid?──► skip if not
     │
     ▼
-Dedup ──Message-ID in sheet?──► skip if yes
+In-place check ──company+role in sheet?──► UPDATE row if new status > old
+    │                                            (progress never regression)
+    └── if no match ──► APPEND new row A-M
     │
     ▼
-Sheets ──append row A-M──► Google Sheets
-    │
-    ▼
-Notifier ──send alert──► Telegram / Slack / WhatsApp
+Notifier ──send alert──► Telegram / Discord / Slack / Pushover
     │
     ▼
 Mark Read ──remove UNREAD label──► Gmail
@@ -425,17 +490,18 @@ Mark Read ──remove UNREAD label──► Gmail
 ### Components Summary
 
 | Component | File | Lines | Role |
-|---|---|---|---|
-| Flask app | `webui.py` | 686 | Routes, OAuth, scheduler, per-user polling, sheet formatting |
+|---|---|---|---|---|
+| Flask app | `webui.py` | ~900 | Routes, OAuth, scheduler, per-user polling, sheet formatting, in-place updates, pipeline status priority, email normalization, Cache-Control |
 | Poller | `src/poller.py` | 85 | Gmail fetch, header extraction, body decode |
-| Parser | `src/parser.py` | 192 | Company/role extraction, type classification, AI integration |
-| AI layer | `src/ai.py` | 129 | NVIDIA/Gemini/Groq API calls |
-| Models | `src/models.py` | 82 | Pydantic JobApplication (13 fields) |
-| Notifier | `src/notifier.py` | 89 | Telegram/Slack/WhatsApp/Pushover |
+| Parser | `src/parser.py` | 238 | Company/role extraction, type classification (8 stages), AI integration, quick_is_job_email filter, COMPANY_ALIASES (60+), Indian market tuning |
+| AI layer | `src/ai.py` | 134 | NVIDIA/Gemini/Groq API calls (two-pass: quick filter → AI) |
+| Models | `src/models.py` | 86 | Pydantic JobApplication (13 fields), 8 email types with emojis |
+| Notifier | `src/notifier.py` | 99 | Telegram/Slack/WhatsApp/Pushover/Discord |
 | Sheets | `src/sheets_writer.py` | 47 | Google Sheets CRUD |
 | Dedup | `src/duplicate_checker.py` | 27 | Message-ID cache |
 | Scheduler | `src/scheduler.py` | 43 | Standalone CLI daemon |
-| HTML UI | `templates/index.html` | 602 | Dashboard + prefs + logs |
+| HTML UI | `templates/index.html` | ~780 | Dashboard + prefs + logs + pipeline progress bar + Material Symbols |
+| Dashboard partial | `templates/_dashboard.html` | ~20 | "Notifications disabled" card for `none` channel |
 
 ---
 
@@ -445,7 +511,7 @@ Mark Read ──remove UNREAD label──► Gmail
 
 | File | Lines | Role |
 |---|---|---|
-| `webui.py` | 686 | Flask app — routes, OAuth, scheduler, per-user polling, sheet formatting |
+| `webui.py` | ~900 | Flask app — routes, OAuth, scheduler, per-user polling, sheet formatting, email normalization, Cache-Control, in-place updates, pipeline status priority |
 | `wsgi.py` | 11 | PythonAnywhere WSGI bridge |
 
 ### Source Modules (`src/`)
@@ -468,7 +534,8 @@ Mark Read ──remove UNREAD label──► Gmail
 
 | File | Lines | Role |
 |---|---|---|
-| `templates/index.html` | 602 | Single-page HTML/JS app — dashboard, prefs, logs |
+| `templates/index.html` | ~780 | Single-page HTML/JS app — dashboard, prefs, logs, Material Symbols, pipeline progress bar |
+| `templates/_dashboard.html` | ~20 | Dashboard partial — status cards, alerts, "Notifications disabled" card for `none` channel |
 
 ### Tests
 
@@ -651,15 +718,18 @@ The response is parsed with `_clean_json()` which strips markdown code fences an
 5. Fallback: `position|role|job title: <role>`, `for the|as a <role>`
 6. Last resort: `"Unknown Position"`
 
-**Email type classification — keyword detection:**
+**Email type classification — keyword detection (8 pipeline stages):**
 
-| Type | Keywords |
-|---|---|
-| `rejection` | `regret to inform`, `unfortunately`, `not moving forward`, `rejected` |
-| `offer_letter` | `offer letter`, `offer of`, `internship offer`, `letter of offer` |
-| `interview_invitation` | `interview`, `invitation to`, `schedule an interview` |
-| `application_received` | `application received`, `thank you for applying`, `we received` |
-| `other` | Everything else |
+| Type | Priority | Keywords |
+|---|---|---|
+| `rejection` | 1 | `regret to inform`, `unfortunately`, `not moving forward`, `rejected` |
+| `other` | 2 | Everything else |
+| `application_received` | 3 | `application received`, `thank you for applying`, `we received` |
+| `assessment` | 4 | `coding test`, `assessment`, `hackerrank`, `hackerearth`, `online test` |
+| `phone_screen` | 5 | `phone screen`, `video screen`, `introductory call`, `quick chat` |
+| `interview_invitation` | 6 | `interview`, `invitation to`, `schedule an interview`, `shortlisted` |
+| `technical_interview` | 7 | `technical interview`, `coding round`, `system design`, `pair programming` |
+| `offer_letter` | 8 | `offer letter`, `offer of`, `internship offer`, `you are hired` |
 
 **Date parsing — tries three formats:**
 
@@ -676,7 +746,9 @@ If AI provides a date, it's used first. If regex finds one, it's used second. Ot
 ```
 parse_email(msg)
     ├── extract subject, sender, body, message_id, internal_date
-    ├── try parse_email_with_ai()
+    ├── quick_is_job_email()  ← Two-pass filter before AI
+    │   └── if false: skip AI call, fall through to regex
+    ├── if job-related: try parse_email_with_ai()
     │   └── if AI returns valid dict:
     │       ├── company = AI result or regex fallback
     │       ├── role = AI result or regex fallback
@@ -684,10 +756,10 @@ parse_email(msg)
     │       ├── summary = AI result
     │       ├── date = AI date or regex date or internal_date
     │       └── parser = "AI"
-    └── else (AI not configured or failed):
-        ├── company = extract_company()
+    └── else (AI not configured or failed or non-job email):
+        ├── company = extract_company()  ← uses COMPANY_ALIASES for domain→name
         ├── role = extract_role()
-        ├── email_type = classify_email_type()
+        ├── email_type = classify_email_type()  ← 8 pipeline stages
         ├── summary = ""
         ├── date = regex date or internal_date
         └── parser = "Regex"
@@ -711,6 +783,20 @@ parse_email(msg)
 - Chat ID resolved via `getUpdates` API
 - Messages sent as Markdown via `sendMessage`
 
+### Discord (next best — webhook-based, no setup friction)
+
+**User setup:**
+1. Select Discord in preferences
+2. Open Discord → Server Settings → Integrations → Create Webhook
+3. Name it "Offer Tracker", pick a channel, copy webhook URL
+4. Paste URL in preferences → Save
+
+**Technical:**
+- Uses Discord webhook URL per user (no bot token needed)
+- URL format: `https://discord.com/api/webhooks/...`
+- Messages sent as JSON `{"content": "..."}` via POST
+- Dashboard shows webhook status, test notification button, change/reset
+
 ### Slack
 
 **User setup:**
@@ -723,10 +809,13 @@ parse_email(msg)
 - Uses webhook URL per user (no bot token needed)
 - Messages sent as JSON `{"text": "..."}` via POST
 - No verification needed — webhooks work immediately
+- **Known issue:** "No channels" picker when creating webhook — needs workspace refresh at api.slack.com
 
-### WhatsApp (CallMeBot — least reliable)
+### WhatsApp (CallMeBot — DEPRECATED / DEAD)
 
-**User setup:**
+**⚠️ CallMeBot no longer works — numbers are banned within hours of activation. Latest number +34 644 59 90 43 not on WhatsApp.**
+
+**Original setup (no longer functional):**
 1. Select WhatsApp in preferences, enter phone number
 2. Tap activation link → opens WhatsApp → send "I allow CallMeBot" to gateway number
 3. CallMeBot replies with API key → paste in app
@@ -734,12 +823,7 @@ parse_email(msg)
 **Technical:**
 - Uses `api.callmebot.com/whatsapp.php` with phone + apikey + text
 - Known issue: API key delivery is unreliable (gateway numbers sometimes don't respond)
-- Two gateway numbers: `+34 644 64 60 89` and `+34 623 78 64 49`
-
-### Pushover (app-level fallback)
-
-- Configured in `.env` with `PUSHOVER_TOKEN` and `PUSHOVER_USER`
-- Used by `notify_all()` — not exposed to users in web UI
+- Gateway numbers: `+34 644 64 60 89`, `+34 623 78 64 49`, `+34 644 03 87 31`, `+34 644 59 90 43` — all dead
 
 ---
 
@@ -914,6 +998,13 @@ python webui.py   # http://localhost:8080
 
 ## 18. Known Issues, Tech Debt & Roadmap
 
+### Recently Fixed (Session 11)
+
+| Issue | Fix |
+|---|---|
+| Briefcase icon didn't render on user's device | Replaced `briefcase` ligature with `description` (document icon) — renders reliably across all devices |
+| Browser caching OAuth callback URL caused "Session expired" on viewport retoggle | Added `@app.after_request` handler setting `Cache-Control: no-store` on all responses; changed error render to `redirect("/")` |
+
 ### Bugs
 
 | Issue | Location | Severity | Description |
@@ -934,15 +1025,18 @@ python webui.py   # http://localhost:8080
 
 ### Roadmap
 
-| Feature | Priority | Description |
-|---|---|---|
-| Dashboard charts | Medium | Application trends, response rates, company breakdown |
-| CSV/Excel export | Low | One-click data export |
-| AI categorization | Low | Auto-tag by industry, role level, location |
-| Parser accuracy | Medium | Fine-tune regex + AI for Indian job market (off-campus, hiring, walk-in) |
-| Multi-language | Low | Parse Hindi, Spanish emails via AI |
-| Email reply detection | Low | Detect company follow-ups |
-| Custom webhook | Low | Pipe to Zapier/Make/n8n |
+| Feature | Priority | Status | Description |
+|---|---|---|---|
+| Dashboard charts | Medium | ❌ Not started | Application trends, response rates, company breakdown |
+| CSV/Excel export | Low | ✅ Done | `/export-xlsx` endpoint + Download XLSX button |
+| AI categorization | Low | ✅ Done | Auto-tag by industry, role level, location (via NVIDIA AI summary) |
+| Parser accuracy | Medium | ✅ Done | Indian job market: 60+ companies, off-campus/walk-in, fresher/GET roles |
+| Multi-language | Low | ❌ Not started | Parse Hindi, Spanish emails via AI |
+| In-place sheet updates | High | ✅ Done | Company+role matching, priority-based status pipeline (8 stages) |
+| Two-pass AI pipeline | Medium | ✅ Done | `quick_is_job_email()` filter before NVIDIA call |
+| Alias matching | Medium | ✅ Done | `COMPANY_ALIASES` (60+ ATS domain→canonical name mappings) |
+| Discord notifications | Medium | ✅ Done | Webhook-based, ~1 min setup |
+| Full status pipeline | Medium | ✅ Done | 8 stages: received→assessment→phone_screen→interview→tech→offer |
 
 ---
 
@@ -962,7 +1056,9 @@ python webui.py   # http://localhost:8080
 | **8** | Jun 11 | ~Late morning | 11 tests passing, session history extraction, error handling polish |
 | **9** | Jun 11 | ~Afternoon | Documentation — README, CASE_STUDY.pdf, GitHub push, documentation skill |
 | **10** | Jun 11-12 | ~Evening | AI migration Gemini→NVIDIA, sheet format beautification, OAuth scope fix, 13-col schema |
-| **11** | Jun 12 | ~Morning | Visual overhaul — custom SVG badges, hero banner, architecture diagram (7-color), how-it-works flow, designer skill created |
+| **11** | Jun 13 | ~Morning | Frontend polish — Material Symbols restored, briefcase→description icon, theme toggle ligature fix, nav fill JS restored, "none" channel card. Backend — email normalization, Cache-Control headers, callback redirect fix |
+| **12** | Jun 12 | ~Morning | Visual overhaul — custom SVG badges, hero banner, architecture diagram (7-color), how-it-works flow, designer skill created |
+| **13** | Jun 12 | ~Evening | Discord notifications, in-place sheet updates, two-pass AI pipeline, alias matching (60+), full status pipeline (8 stages), WhatsApp deprecated, Indian market tuning |
 
 ## Appendix B: Why Each Approach Was Chosen/Rejected
 
@@ -1003,10 +1099,10 @@ subject:"we received your application"
 | E | Sender Email | Gmail header |
 | F | Message ID | Gmail header (dedup key) |
 | G | Alert Sent | Always "Yes" |
-| H | Email Type | Classifier (Offer/Interview/Received/Rejection/Other) |
+| H | Email Type | Classifier (8 stages: Received/Assessment/Phone Screen/Interview/Tech Interview/Offer/Rejected/Other) |
 | I | Summary | AI generated (2-3 sentence description) |
 | J | Location | AI extracted (e.g., "Bangalore, India") |
-| K | Salary | AI extracted (e.g., "$120k/yr") |
+| K | Salary | AI extracted (e.g., "$120k/yr", "₹12 LPA") |
 | L | Next Step | AI classified (interview/offer/follow_up/waiting/rejected/none) |
 | M | Parser | Provider name ("NVIDIA", "Gemini", "Groq", "Regex") |
 
@@ -1039,6 +1135,16 @@ pytest
 | **Single HTML file (no JS framework)** | Zero build step; deployable as-is; works without npm |
 | **Base64-encoded token filenames** | Safe for filesystem (no @ or / in filenames); reversible for debugging |
 
+| **Discord over WhatsApp** | Webhook-based (no phone number, no verification, no rate limits); WhatsApp CallMeBot numbers get banned within hours |
+| **In-place updates over always-append** | Same application emails no longer create duplicate rows; priority system prevents status regression |
+| **Two-pass AI pipeline** | Quick regex filter before NVIDIA call saves API credits on non-job emails (spam, newsletters) |
+| **COMPANY_ALIASES for domain normalization** | `extract_company_from_address()` now maps ATS/company domains to canonical names instead of raw title-case |
+| **8-stage pipeline instead of 5** | Separate phone_screen, assessment, and technical_interview stages give more granular status tracking |
+| **Pipeline progress bar in dashboard** | Users can visually see where each application stands without opening the sheet |
+| **Email normalization (dots + case)** | Gmail ignores dots and case in usernames, so `normalize_email()` lowercases and strips dots before `@gmail.com` to prevent duplicate user entries and token file mismatches |
+| **Cache-Control: no-store on all responses** | Prevents browser from caching the OAuth callback URL; replaying a cached callback was causing spurious "Session expired" errors |
+| **Theme toggle always available** | Light/dark toggle uses `dark_mode`/`light_mode` Material Symbols ligatures that render on all devices; avoids ligature-dependent icon bugs |
+
 ---
 
-*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-12 (Updated: Session 10 — NVIDIA migration, sheet formatting, 13-col schema).*
+*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-13 (Updated: Session 11 — frontend polish, email normalization, Cache-Control, Material Symbols).*

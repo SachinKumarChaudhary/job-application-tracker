@@ -1,602 +1,718 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offer Tracker</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background: #f1f5f9; color: #1e293b; padding: 16px; }
-    .container { max-width: 960px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; }
-    .subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 20px; }
-    .card-center { background: #fff; border-radius: 16px; padding: 32px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; max-width: 520px; margin: 40px auto; }
-    .card-center h2 { font-size: 1.2rem; margin-bottom: 12px; }
-    .card-center p { color: #64748b; font-size: 0.875rem; margin-bottom: 20px; line-height: 1.5; }
-    .card-center .step { text-align: left; margin: 12px 0; padding: 12px; background: #f8fafc; border-radius: 8px; font-size: 0.85rem; }
-    .card-center .step b { display: block; margin-bottom: 4px; }
-    .card-center .step code { font-size: 0.75rem; background: #e2e8f0; padding: 1px 6px; border-radius: 4px; word-break: break-all; }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="color-scheme" content="light" />
+<title>Offer Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+<meta name="theme-color" content="#171717" />
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        surface: "var(--color-surface)",
+        "surface-dim": "var(--color-surface-dim)",
+        "surface-bright": "var(--color-surface-bright)",
+        "surface-container": "var(--color-surface-container)",
+        "surface-container-low": "var(--color-surface-container-low)",
+        "surface-container-lowest": "var(--color-surface-container-lowest)",
+        "surface-container-high": "var(--color-surface-container-high)",
+        "surface-container-highest": "var(--color-surface-container-highest)",
+        "on-surface": "var(--color-on-surface)",
+        "on-surface-variant": "var(--color-on-surface-variant)",
+        outline: "var(--color-outline)",
+        "outline-variant": "var(--color-outline-variant)",
+        secondary: "var(--color-secondary)",
+        "secondary-container": "var(--color-secondary-container)",
+        "on-secondary": "var(--color-on-secondary)",
+        "on-secondary-container": "var(--color-on-secondary-container)",
+        error: "var(--color-error)",
+        "error-container": "var(--color-error-container)",
+        "on-error": "var(--color-on-error)",
+        "on-error-container": "var(--color-on-error-container)",
+        primary: "var(--color-primary)",
+        "primary-container": "var(--color-primary-container)",
+        "on-primary": "var(--color-on-primary)",
+        "on-primary-container": "var(--color-on-primary-container)",
+        background: "var(--color-background)",
+        "on-background": "var(--color-on-background)",
+        success: "var(--color-success)",
+      },
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
+        full: "9999px",
+      },
+      spacing: {
+        "stack-sm": "8px",
+        "stack-md": "16px",
+        "stack-lg": "24px",
+        "gutter-card": "12px",
+        "touch-target": "44px",
+        "margin-page": "16px",
+      },
+      fontFamily: {
+        "headline-md": ["Inter", "sans-serif"],
+        "label-caps": ["Geist", "sans-serif"],
+        "body-base": ["Inter", "sans-serif"],
+        "body-sm": ["Inter", "sans-serif"],
+        "mono-label": ["Geist", "monospace"],
+        "display-lg": ["Inter", "sans-serif"],
+      },
+      fontSize: {
+        "headline-md": ["20px", { lineHeight: "28px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "label-caps": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+        "body-base": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+        "body-sm": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+        "mono-label": ["13px", { lineHeight: "18px", fontWeight: "500" }],
+        "display-lg": ["28px", { lineHeight: "34px", letterSpacing: "-0.02em", fontWeight: "700" }],
+      },
+    },
+  },
+}
+</script>
+<style>
+:root {
+  --color-surface: #faf9f9;
+  --color-surface-dim: #dbdad9;
+  --color-surface-bright: #faf9f9;
+  --color-surface-container: #efeded;
+  --color-surface-container-low: #f5f3f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e9e8e8;
+  --color-surface-container-highest: #e3e2e2;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #444748;
+  --color-outline: #747878;
+  --color-outline-variant: #c4c7c7;
+  --color-secondary: #0057c0;
+  --color-secondary-container: #006ff0;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #fefcff;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+  --color-primary: #000000;
+  --color-primary-container: #1c1b1b;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #858383;
+  --color-background: #faf9f9;
+  --color-on-background: #1b1c1c;
+  --color-success: #16a34a;
+}
+.dark {
+  --color-surface: #1a1a1a;
+  --color-surface-dim: #111111;
+  --color-surface-bright: #383838;
+  --color-surface-container: #252525;
+  --color-surface-container-low: #1e1e1e;
+  --color-surface-container-lowest: #111111;
+  --color-surface-container-high: #2e2e2e;
+  --color-surface-container-highest: #383838;
+  --color-on-surface: #e3e3e3;
+  --color-on-surface-variant: #a1a1a1;
+  --color-outline: #666666;
+  --color-outline-variant: #333333;
+  --color-secondary: #7ab3ff;
+  --color-secondary-container: #004397;
+  --color-on-secondary: #001a43;
+  --color-on-secondary-container: #d8e2ff;
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+  --color-primary: #e3e3e3;
+  --color-primary-container: #e5e2e1;
+  --color-on-primary: #1c1b1b;
+  --color-on-primary-container: #858383;
+  --color-background: #111111;
+  --color-on-background: #e3e3e3;
+  --color-success: #3ecf8e;
+}
+.dark .topbar { background: #0a0a0a !important; }
+.dark .log-box { background: #0d1117 !important; }
 
-    .btn { display: inline-block; background: #2563eb; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; }
-    .btn:hover { background: #1d4ed8; }
-    .btn:disabled { background: #93c5fd; cursor: not-allowed; }
-    .btn-success { background: #16a34a; }
-    .btn-success:hover { background: #15803d; }
-    .btn-outline { background: #fff; color: #2563eb; border: 2px solid #2563eb; }
-    .btn-outline:hover { background: #eff6ff; }
-    .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+.topbar { background: #171717 !important; }
+.topbar, .topbar h1, .topbar .material-symbols-outlined { color: #ffffff !important; }
+#themeToggle { border-color: rgba(255,255,255,0.2); }
 
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-    .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-    .card .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
-    .card .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
-    .card .value.green { color: #16a34a; }
-    .card .value.red { color: #dc2626; }
-    .card .value.gray { color: #64748b; }
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-feature-settings: 'liga';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+}
+.tap-highlight-transparent { -webkit-tap-highlight-color: transparent; }
+.safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+.safe-pt { padding-top: env(safe-area-inset-top); }
+.bento-card { border: 1px solid var(--color-outline-variant); transition: all 0.2s ease; }
+.bento-card:active { transform: scale(0.98); }
 
-    .section { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; }
-    .section h2 { font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-block; }
+.htmx-settling .htmx-indicator, .htmx-settling.htmx-indicator { display: none; }
+button.htmx-request, a.htmx-request { opacity: 0.6; pointer-events: none; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    th { text-align: left; padding: 8px 6px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600; }
-    td { padding: 8px 6px; border-bottom: 1px solid #f1f5f9; }
-    .empty { text-align: center; padding: 24px; color: #94a3b8; font-size: 0.875rem; }
-    .error-box { background: #fef2f2; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 12px; }
-    .success-box { background: #f0fdf4; color: #16a34a; padding: 10px 14px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 12px; }
-    .log-box { background: #0f172a; color: #38bdf8; padding: 12px; border-radius: 8px; font-size: 0.75rem; max-height: 150px; overflow-y: auto; font-family: monospace; }
-    .log-box div { padding: 2px 0; }
-    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-    .status-dot.green { background: #16a34a; }
-    .status-dot.red { background: #dc2626; }
-    .status-dot.gray { background: #94a3b8; }
-    .badge { font-size: 0.7rem; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #475569; }
-
-    .header-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-    .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-
-    .prefs-form { max-width: 480px; margin: 0 auto; }
-    .prefs-form label { display: block; margin: 12px 0 4px; font-size: 0.85rem; font-weight: 600; color: #334155; }
-    .prefs-form input { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; }
-    .prefs-form input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-    .prefs-form .radio-group { display: flex; gap: 12px; margin: 8px 0; flex-wrap: wrap; }
-    .prefs-form .radio-group label { font-weight: 400; cursor: pointer; padding: 10px 16px; border: 2px solid #e2e8f0; border-radius: 8px; margin: 0; font-size: 0.85rem; flex: 1; text-align: center; min-width: 100px; }
-    .prefs-form .radio-group label.selected { border-color: #2563eb; background: #eff6ff; }
-    .prefs-form .radio-group input { display: none; }
-    .prefs-form .channel-fields { display: none; margin-top: 4px; }
-    .prefs-form .channel-fields.active { display: block; }
-    .guide-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin: 8px 0; font-size: 0.8rem; text-align: left; display: none; }
-    .guide-box.active { display: block; }
-    .guide-box ol { margin-left: 18px; color: #475569; }
-    .guide-box ol li { margin: 6px 0; }
-    .guide-box code { font-size: 0.7rem; background: #e2e8f0; padding: 1px 6px; border-radius: 4px; }
-
-    .file-label { display: inline-block; background: #fff; color: #2563eb; border: 2px solid #2563eb; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
-    .file-label:hover { background: #eff6ff; }
-    input[type="file"] { display: none; }
-
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 0.875rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; }
-    .toast.show { opacity: 1; }
-
-    .action-bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; align-items: center; }
-
-    @media (max-width: 600px) {
-      table { font-size: 0.7rem; }
-      td, th { padding: 6px 4px; }
-      .card .value { font-size: 1.2rem; }
-      .card-center { margin: 20px 8px; padding: 24px 16px; }
-    }
-  </style>
+.login-card { max-width: 420px; margin: 60px auto; }
+.bento-card-flat { border: 1px solid var(--color-outline-variant); }
+.progress-bar { width: 60px; height: 4px; background: var(--color-outline-variant); border-radius: 2px; overflow: hidden; }
+.progress-bar .fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.log-box { background: #1b1c1c; color: #38bdf8; padding: 12px 14px; border-radius: 8px; font-size: 0.75rem; max-height: 160px; overflow-y: auto; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; line-height: 1.5; }
+.log-box div { padding: 2px 0; }
+.dark .log-box { background: #0d1117; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap table { min-width: 540px; }
+.table-wrap th { font-family: Geist, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-on-surface-variant); text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--color-outline-variant); }
+.table-wrap td { padding: 10px 8px; border-bottom: 1px solid var(--color-outline-variant); font-size: 14px; }
+.table-wrap tbody tr:hover { background: var(--color-surface-container-low); }
+.hide-mobile { display: table-cell; }
+@media (max-width: 600px) { .hide-mobile { display: none; } }
+.status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.status-dot.green { background: var(--color-success); }
+.status-dot.red { background: var(--color-error); }
+.status-dot.gray { background: var(--color-outline); }
+.badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+</style>
+<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJATtB4FttELC/e9iIu0C5e8V0Juk6H2BS/s5i9" crossorigin="anonymous"></script>
 </head>
-<body>
-  <div class="container">
-    <div class="header-bar">
-      <div>
-        <h1>Offer Tracker</h1>
-        <p class="subtitle">Internship automation demo</p>
-      </div>
-      <div class="header-right">
-        {% if authed %}
-          <span class="badge" style="background:#dcfce7;color:#16a34a;">{{ email }}</span>
-          {% if prefs_complete %}<span class="badge" id="channelBadge">{{ prefs.notification_channel }}</span>{% endif %}
-        {% elif needs_creds %}
-          <span class="badge" style="background:#fef3c7;color:#d97706;">Setup</span>
-        {% else %}
-          <span class="badge" style="background:#fef3c7;color:#d97706;">Sign in required</span>
-        {% endif %}
-      </div>
-    </div>
+<body class="bg-surface text-on-surface font-body-base tap-highlight-transparent selection:bg-secondary-container selection:text-on-secondary-container">
 
-    {% if not authed and needs_creds %}
-    <div class="card-center">
-      <h2>Admin Setup</h2>
-      <p>Upload Google Cloud OAuth credentials to enable sign-in.</p>
-      <div class="step">
-        <b>1</b> Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
-        → OAuth 2.0 → <b>Web application</b>
-      </div>
-      <div class="step">
-        <b>2</b> Add redirect URI:<br>
-        <code>{{ redirect_uri }}</code>
-      </div>
-      <div class="step">
-        <b>3</b> Download JSON and upload:
-      </div>
-      <form id="uploadForm">
-        <label class="file-label" for="credsFile">Upload credentials.json</label>
-        <input type="file" id="credsFile" accept=".json">
-        <br><br>
-        <button type="submit" class="btn" id="uploadBtn" disabled>Upload</button>
-      </form>
-      <div id="uploadStatus" style="margin-top:12px;font-size:0.85rem;"></div>
-    </div>
-
-    {% elif not authed %}
-    <div class="card-center">
-      <h2>Job Application Auto-Tracker</h2>
-      {% if oauth_error %}
-      <div class="error-box">OAuth Error: {{ oauth_error }}</div>
+<header class="topbar fixed top-0 left-0 right-0 h-[44px] z-50 flex items-center justify-between px-margin-page safe-pt border-b border-white/10">
+  <h1 class="font-headline-md text-headline-md font-bold">Offer Tracker</h1>
+  <div class="flex items-center gap-2">
+    <button id="themeToggle" onclick="toggleTheme()" class="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors border border-white/20" title="Toggle theme">
+      <span class="material-symbols-outlined text-[20px]" id="themeIcon">dark_mode</span>
+    </button>
+    {% if authed %}
+      <span class="badge rounded-full bg-success/20 text-success px-3 py-1 max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap hidden sm:inline">{{ email }}</span>
+      {% if prefs_complete %}
+        <span class="badge rounded-full bg-secondary/20 text-secondary px-3 py-1 max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap text-[11px]" id="channelBadge">{{ prefs.notification_channel }}</span>
       {% endif %}
-      <p>Sign in with Google to connect your Gmail and start tracking job applications automatically.</p>
-      <a href="/auth" class="btn" style="font-size:1rem;padding:14px 32px;">Sign in with Google</a>
-    </div>
-
-    {% elif not prefs_complete %}
-    <div class="card-center">
-      <h2>Gmail Connected</h2>
-      <p>Signed in as <strong>{{ email }}</strong>. Pick how you want to get notified.</p>
-
-      <form class="prefs-form" id="prefsForm">
-        <label>Notification Channel</label>
-        <div class="radio-group">
-          <label data-channel="telegram" onclick="selectChannel(this)">
-            <input type="radio" name="channel" value="telegram"> Telegram
-          </label>
-          <label data-channel="slack" onclick="selectChannel(this)">
-            <input type="radio" name="channel" value="slack"> Slack
-          </label>
-          <label data-channel="whatsapp" onclick="selectChannel(this)">
-            <input type="radio" name="channel" value="whatsapp"> WhatsApp
-          </label>
-          <label data-channel="none" onclick="selectChannel(this)">
-            <input type="radio" name="channel" value="none" checked> None (skip)
-          </label>
-        </div>
-
-        <div class="channel-fields" id="telegram-fields">
-          <label>Your Telegram @username</label>
-          <input type="text" name="telegram_username" placeholder="@username">
-          <div style="font-size:0.8rem;color:#64748b;background:#f8fafc;padding:10px;border-radius:6px;margin-top:6px;">
-            After saving, message the bot to connect — we'll detect it automatically.
-          </div>
-        </div>
-
-        <div class="channel-fields" id="slack-fields">
-          <label>Slack Webhook URL</label>
-          <input type="text" name="slack_webhook_url" id="slackUrlInput" placeholder="https://hooks.slack.com/services/..." oninput="validateSlackUrl()">
-          <span id="slackUrlStatus" style="font-size:0.75rem;"></span>
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-top:8px;text-align:left;">
-            <div style="font-weight:600;margin-bottom:8px;font-size:0.85rem;">Get your webhook URL in 2 minutes:</div>
-            <ol style="margin-left:18px;font-size:0.8rem;color:#475569;">
-              <li style="margin:6px 0;">Go to <a href="https://api.slack.com/apps" target="_blank"><b>api.slack.com/apps</b></a></li>
-              <li style="margin:6px 0;">Click <b>Create New App</b> → <b>From scratch</b></li>
-              <li style="margin:6px 0;">Name it <b>"Offer Tracker"</b> → pick your workspace</li>
-              <li style="margin:6px 0;">In left menu, click <b>Incoming Webhooks</b> → toggle <b>On</b></li>
-              <li style="margin:6px 0;">Click <b>Add New Webhook to Workspace</b></li>
-              <li style="margin:6px 0;">Pick a channel → click <b>Allow</b> → copy the URL → paste above</li>
-            </ol>
-          </div>
-        </div>
-
-        <div class="channel-fields" id="whatsapp-fields">
-          <label>Your Phone Number (with country code)</label>
-          <input type="text" name="whatsapp_phone" placeholder="+919876543210">
-          <div style="font-size:0.8rem;color:#64748b;background:#f8fafc;padding:10px;border-radius:6px;margin-top:6px;">
-            We'll guide you through activation after saving.
-          </div>
-        </div>
-
-        <br>
-        <button type="submit" class="btn btn-success" style="width:100%;">Save & Continue</button>
-      </form>
-      <div id="prefsStatus" style="margin-top:12px;font-size:0.85rem;"></div>
-    </div>
-
+    {% elif needs_creds %}
+      <span class="badge rounded-full bg-yellow-100 text-yellow-800 px-3 py-1">Setup</span>
     {% else %}
-
-      <div class="action-bar">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-sm" id="triggerBtn" onclick="return triggerCheck()">Check Now</button>
-          <button class="btn btn-sm btn-success" id="testEmailBtn" onclick="return sendTestEmail()">Send Test Email</button>
-          <button class="btn btn-sm btn-outline" id="testNotifBtn" onclick="return testNotification()">Test Notification</button>
-          {% if sheet_url %}<a href="{{ sheet_url }}" target="_blank" class="btn btn-sm btn-outline">View Sheet</a>{% endif %}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <a href="/change-channel" class="btn btn-sm btn-outline" style="color:#64748b;border-color:#cbd5e1;">Change Channel</a>
-          <a href="/logout" class="btn btn-sm" style="background:#dc2626;color:#fff;">Logout</a>
-        </div>
-      </div>
-
-    <div class="cards">
-      <div class="card">
-        <div class="label">Auto-Poll</div>
-        <div class="value" id="autoStatus" style="font-size:0.9rem;">
-          <span class="status-dot gray"></span> Checking...
-        </div>
-      </div>
-      <div class="card">
-        <div class="label">Last Poll</div>
-        <div class="value" style="font-size:1rem;">{% if last_run %}{{ last_run.strftime('%H:%M:%S') }}{% else %}--{% endif %}</div>
-      </div>
-      <div class="card">
-        <div class="label">New (last run)</div>
-        <div class="value {% if last_count > 0 %}green{% else %}gray{% endif %}">{{ last_count }}</div>
-      </div>
-      <div class="card">
-        <div class="label">Notification</div>
-        <div class="value" id="notifStatus" style="font-size:0.9rem;text-transform:capitalize;">Checking...</div>
-      </div>
-    </div>
-
-    {% if prefs.notification_channel == 'telegram' and not prefs.telegram_chat_id %}
-    <div class="section" style="border:2px solid #2563eb;text-align:center;" id="telegramConnectBox">
-      <h2>Connect Telegram</h2>
-      <p style="font-size:0.9rem;margin:12px 0;">
-        Open Telegram and message the bot:
-      </p>
-      <a href="https://t.me/{{ telegram_bot_username }}" target="_blank" class="btn" style="font-size:1rem;padding:14px 28px;margin-bottom:12px;">
-        Open @{{ telegram_bot_username }}
-      </a>
-      <p style="font-size:0.8rem;color:#64748b;">Send <code>/start</code> — we'll detect it automatically.</p>
-      <div id="telegramStatus" style="margin-top:10px;font-size:0.9rem;">
-        <span class="status-dot gray"></span> Waiting for you to message the bot...
-      </div>
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'whatsapp' and not prefs.whatsapp_apikey %}
-    <div class="section" style="border:2px solid #25D366;text-align:center;">
-      <h2>Activate WhatsApp</h2>
-      <p style="font-size:0.9rem;margin-bottom:16px;">
-        Tap either button to open WhatsApp with the activation message pre-filled.
-        Just tap <strong>Send</strong> — you'll get an API key back.
-      </p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;">
-        <a href="https://wa.me/34644646089?text=I%20allow%20CallMeBot%20to%20send%20me%20messages" target="_blank" class="btn" style="background:#25D366;font-size:0.9rem;padding:12px 20px;">
-          Try +34 644 64 60 89
-        </a>
-        <a href="https://wa.me/34623786449?text=I%20allow%20CallMeBot%20to%20send%20me%20messages" target="_blank" class="btn" style="background:#128C7E;font-size:0.9rem;padding:12px 20px;">
-          Try +34 623 78 64 49 (backup)
-        </a>
-      </div>
-      <div style="text-align:left;max-width:400px;margin:0 auto;font-size:0.85rem;">
-        <div class="step">
-          <b>After tapping Send</b> — CallMeBot will reply with your API key.<br>
-          Copy it and paste below:
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;max-width:400px;margin:12px auto;">
-        <input type="text" id="whatsappApikey" placeholder="Paste your API key here" style="flex:1;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;">
-        <button class="btn btn-success" onclick="saveWhatsAppApikey()">Verify & Save</button>
-      </div>
-      <div id="whatsappStatus" style="font-size:0.85rem;"></div>
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'slack' %}
-    <div class="section" style="border:2px solid #4A154B;">
-      <h2>
-        <span>Slack Notification</span>
-        <span class="badge" id="slackStatusBadge">
-          {%- if prefs.slack_webhook_url -%}
-            <span style="color:#16a34a;">Connected</span>
-          {%- else -%}
-            <span style="color:#d97706;">Not set up</span>
-          {%- endif -%}
-        </span>
-      </h2>
-      {% if prefs.slack_webhook_url %}
-        <div style="font-size:0.8rem;color:#64748b;margin-bottom:8px;">
-          Webhook URL: <code style="word-break:break-all;">{{ prefs.slack_webhook_url }}</code>
-        </div>
-        <button class="btn btn-sm btn-outline" onclick="testNotification()">Test Notification</button>
-        <a href="/change-channel" class="btn btn-sm btn-outline" style="margin-left:6px;">Change</a>
-      {% else %}
-        <p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">
-          Get your Slack webhook URL and paste it below:
-        </p>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;text-align:left;font-size:0.8rem;">
-          <div style="font-weight:600;margin-bottom:6px;">How to get your webhook URL:</div>
-          <ol style="margin-left:18px;color:#475569;">
-            <li style="margin:4px 0;">Go to <a href="https://api.slack.com/apps" target="_blank"><b>api.slack.com/apps</b></a></li>
-            <li style="margin:4px 0;">Click <b>Create New App</b> → <b>From scratch</b></li>
-            <li style="margin:4px 0;">Name it <b>"Offer Tracker"</b> → pick your workspace</li>
-            <li style="margin:4px 0;">In left menu, click <b>Incoming Webhooks</b> → toggle <b>On</b></li>
-            <li style="margin:4px 0;">Click <b>Add New Webhook to Workspace</b></li>
-            <li style="margin:4px 0;">Pick a channel → click <b>Allow</b> → copy the URL</li>
-          </ol>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="slackWebhookInput" placeholder="https://hooks.slack.com/services/..." style="flex:1;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;">
-          <button class="btn btn-success" onclick="saveSlackWebhook()">Save</button>
-        </div>
-        <div id="slackSaveStatus" style="font-size:0.85rem;margin-top:6px;"></div>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    {% if last_error %}
-    <div class="error-box">{{ last_error }}</div>
-    {% endif %}
-    {% if sheet_error %}
-    <div class="error-box">Sheets: {{ sheet_error }}</div>
-    {% endif %}
-
-    <div class="section">
-      <h2><span>Recent Entries</span><span class="badge">{{ rows|length }} rows</span></h2>
-      {% if rows %}
-      <div style="overflow-x:auto;">
-        <table>
-          <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
-          <tbody>{% for row in rows|reverse %}
-            <tr>
-              {% for cell in row[:5] %}<td>{{ cell }}</td>{% endfor %}
-              <td>{% if row[7] %}<span class="badge">{{ row[7] }}</span>{% endif %}</td>
-              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem;color:#64748b;">{{ row[8] if row[8] else '' }}</td>
-            </tr>{% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="empty">No entries yet. Click "Send Test Email" then "Check Now" to see the full pipeline.</div>
-      {% endif %}
-    </div>
-
-    <div class="section">
-      <h2>Activity Log</h2>
-      <div class="log-box" id="logBox">{% for line in logs %}<div>{{ line }}</div>{% endfor %}</div>
-    </div>
-
-    <div class="section" id="automationSection" style="display:none;">
-      <h2>
-        <span>24/7 Automation</span>
-        <span class="badge" id="autoBadge">Setting up...</span>
-      </h2>
-      <p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">
-        Keep the app alive and polling every {{ interval }} minutes — even when you're not on the site.
-        Set up a <strong>free cron-job.org</strong> task to ping the URL below.
-      </p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <code id="cronUrl" style="flex:1;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;word-break:break-all;"></code>
-        <button class="btn btn-sm" onclick="copyCronUrl()" style="white-space:nowrap;">Copy URL</button>
-      </div>
-      <div style="margin-top:10px;font-size:0.8rem;color:#64748b;background:#f8fafc;padding:10px;border-radius:8px;">
-        <b>Setup:</b> Go to <a href="https://cron-job.org" target="_blank">cron-job.org</a> →
-        Sign up → "Create Cron Job" → paste the URL → set <b>every 15 minutes</b> → Save.
-      </div>
-    </div>
-
+      <span class="badge rounded-full bg-outline/20 text-on-surface-variant px-3 py-1">Sign in required</span>
     {% endif %}
   </div>
+</header>
 
-  <div class="toast" id="toast"></div>
+<main class="pt-[44px] pb-[80px] safe-pt" id="app-container">
 
-  <script>
-    {% if not authed and needs_creds %}
-    document.getElementById('credsFile').addEventListener('change', function() { document.getElementById('uploadBtn').disabled = !this.files.length; });
-    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const fd = new FormData(); fd.append('file', document.getElementById('credsFile').files[0]);
-      const btn = document.getElementById('uploadBtn'); const st = document.getElementById('uploadStatus');
-      btn.disabled = true; btn.textContent = 'Uploading...';
-      try {
-        const r = await fetch('/upload-credentials', { method:'POST', body:fd });
-        const d = await r.json();
-        if (d.status==='ok') { st.innerHTML='Done! Reloading...'; location.reload(); }
-        else { st.innerHTML='Error: '+(d.error||'Failed'); btn.disabled=false; btn.textContent='Upload'; }
-      } catch(e) { st.innerHTML='Error'; btn.disabled=false; btn.textContent='Upload'; }
-    });
+{% if not authed and needs_creds %}
+<div class="login-card px-margin-page">
+  <div class="bento-card bg-surface-container-lowest p-stack-lg rounded-xl text-center">
+    <h2 class="font-headline-md text-headline-md mb-2">Admin Setup</h2>
+    <p class="text-body-sm text-on-surface-variant mb-6">Upload Google Cloud OAuth credentials to enable sign-in.</p>
+    <div class="text-left space-y-3 mb-6">
+      <div class="bg-surface-container rounded-lg p-3 text-sm">
+        <b class="block mb-1">1</b> Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-secondary hover:underline">Google Cloud Console</a> → OAuth 2.0 → <b>Web application</b>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-sm">
+        <b class="block mb-1">2</b> Add redirect URI:<br>
+        <code class="text-xs bg-outline-variant/30 px-1 rounded">{{ redirect_uri }}</code>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-sm">
+        <b class="block mb-1">3</b> Download JSON and upload:
+      </div>
+    </div>
+    <form id="uploadForm">
+      <label class="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-secondary text-secondary font-label-caps text-label-caps cursor-pointer hover:bg-secondary/5 transition-colors" for="credsFile">
+        <span class="material-symbols-outlined text-[18px]">upload_file</span>
+        Upload credentials.json
+      </label>
+      <input type="file" id="credsFile" accept=".json" class="hidden">
+      <br><br>
+      <button type="submit" class="w-full h-touch-target bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] disabled:opacity-40" id="uploadBtn" disabled>Upload</button>
+    </form>
+    <div id="uploadStatus" class="mt-3 text-sm"></div>
+  </div>
+</div>
+
+{% elif not authed %}
+<div class="login-card px-margin-page">
+  <div class="bento-card bg-surface-container-lowest p-stack-lg rounded-xl text-center">
+    <div class="w-14 h-14 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-4">
+      <span class="material-symbols-outlined text-secondary text-[28px]">description</span>
+    </div>
+    <h2 class="font-headline-md text-headline-md mb-2">Job Application Auto-Tracker</h2>
+    {% if oauth_error %}
+    <div class="bg-error-container text-on-error-container p-3 rounded-lg text-sm mb-4">{{ oauth_error }}</div>
     {% endif %}
+    <p class="text-body-sm text-on-surface-variant mb-6">Sign in with Google to connect your Gmail and start tracking job applications automatically.</p>
+    <a href="/auth" class="inline-flex items-center gap-2 h-touch-target px-8 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] no-underline hover:no-underline">
+      <span class="material-symbols-outlined text-[20px]">login</span>
+      Sign in with Google
+    </a>
+  </div>
+</div>
 
-    {% if not prefs_complete and authed %}
-    function selectChannel(el) {
-      document.querySelectorAll('.radio-group label').forEach(l => l.classList.remove('selected'));
-      el.classList.add('selected');
-      el.querySelector('input[type="radio"]').checked = true;
-      document.querySelectorAll('.channel-fields').forEach(f => f.classList.remove('active'));
-      const fields = document.getElementById(el.dataset.channel+'-fields');
-      if (fields) fields.classList.add('active');
-    }
+{% elif not prefs_complete %}
+<div class="px-margin-page max-w-[480px] mx-auto my-8">
+  <div class="bento-card bg-surface-container-lowest p-stack-lg rounded-xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+        <span class="material-symbols-outlined text-success text-[22px]">check_circle</span>
+      </div>
+      <div>
+        <h2 class="font-headline-md text-[18px] font-semibold">Gmail Connected</h2>
+        <p class="text-body-sm text-on-surface-variant">Signed in as <strong>{{ email }}</strong></p>
+      </div>
+    </div>
+    <p class="font-label-caps text-label-caps text-on-surface-variant mb-3">Pick a notification channel</p>
+    <form class="space-y-4" id="prefsForm">
+      <div class="grid grid-cols-2 gap-2">
+        {% macro channel_btn(name, icon, label) %}
+        <label class="flex items-center gap-2 p-3 rounded-xl border border-outline-variant cursor-pointer hover:border-secondary transition-colors tap-highlight-transparent has-[:checked]:border-secondary has-[:checked]:bg-secondary/5" onclick="selectChannel(this)">
+          <input type="radio" name="channel" value="{{ name }}" class="hidden">
+          <span class="material-symbols-outlined text-[18px] text-on-surface-variant">{{ icon }}</span>
+          <span class="font-body-sm text-sm">{{ label }}</span>
+        </label>
+        {% endmacro %}
+        {{ channel_btn('telegram', 'send', 'Telegram') }}
+        {{ channel_btn('slack', 'forum', 'Slack') }}
+        {{ channel_btn('whatsapp', 'chat', 'WhatsApp (CallMeBot)') }}
+        {{ channel_btn('discord', 'headset_mic', 'Discord') }}
+        {{ channel_btn('whatsapp_cloud', 'cloud', 'WhatsApp Cloud') }}
+        {{ channel_btn('twilio_whatsapp', 'call', 'Twilio WhatsApp') }}
+        {{ channel_btn('pushover', 'notifications_active', 'Pushover') }}
+        <label class="flex items-center gap-2 p-3 rounded-xl border border-outline-variant cursor-pointer hover:border-secondary transition-colors tap-highlight-transparent has-[:checked]:border-secondary has-[:checked]:bg-secondary/5" onclick="selectChannel(this)">
+          <input type="radio" name="channel" value="none" checked class="hidden">
+          <span class="material-symbols-outlined text-[18px] text-on-surface-variant">block</span>
+          <span class="font-body-sm text-sm">None</span>
+        </label>
+      </div>
 
-    function validateSlackUrl() {
-      const el = document.getElementById('slackUrlInput');
-      const st = document.getElementById('slackUrlStatus');
-      if (!el || !st) return;
-      const v = el.value.trim();
-      if (!v) { st.textContent = ''; return; }
-      if (v.startsWith('https://hooks.slack.com/')) {
-        st.innerHTML = '<span style="color:#16a34a;">Valid URL</span>';
-      } else {
-        st.innerHTML = '<span style="color:#dc2626;">Must start with https://hooks.slack.com/</span>';
+      <div class="channel-fields hidden" id="telegram-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your Telegram @username</label>
+        <input type="text" name="telegram_username" placeholder="@username" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+        <p class="text-xs text-on-surface-variant mt-1">After saving, message the bot to connect.</p>
+      </div>
+
+      <div class="channel-fields hidden" id="slack-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Slack Webhook URL</label>
+        <input type="text" name="slack_webhook_url" id="slackUrlInput" placeholder="https://hooks.slack.com/services/..." class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" oninput="validateSlackUrl()">
+        <span id="slackUrlStatus" class="text-xs"></span>
+        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
+          <b class="block mb-1">Get your webhook:</b>
+          <ol class="ml-4 space-y-1">
+            <li><a href="https://api.slack.com/apps" target="_blank" class="text-secondary">api.slack.com/apps</a> → Create New App → From scratch</li>
+            <li>Name it "Offer Tracker" → pick workspace</li>
+            <li>Incoming Webhooks → toggle On → Add New Webhook</li>
+            <li>Pick a <b>public</b> channel → Allow → copy URL</li>
+          </ol>
+          <div class="mt-2 p-2 rounded-lg bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"><b>No channels?</b> Create a public channel first.</div>
+        </div>
+      </div>
+
+      <div class="channel-fields hidden" id="whatsapp-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your Phone Number</label>
+        <input type="text" name="whatsapp_phone" placeholder="+919876543210" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+      </div>
+
+      <div class="channel-fields hidden" id="discord-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Discord Webhook URL</label>
+        <input type="text" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
+          <b class="block mb-1">Get webhook:</b>
+          <ol class="ml-4 space-y-1">
+            <li>Discord → Server Settings → Integrations</li>
+            <li>Create Webhook → name "Offer Tracker"</li>
+            <li>Copy Webhook URL</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="channel-fields hidden" id="whatsapp_cloud-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your WhatsApp Number</label>
+        <input type="text" name="whatsapp_cloud_phone" placeholder="+919876543210" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
+          <b class="block mb-1">Admin setup required on .env:</b>
+          <code class="block">WHATSAPP_CLOUD_PHONE_NUMBER_ID</code>
+          <code class="block">WHATSAPP_CLOUD_ACCESS_TOKEN</code>
+        </div>
+      </div>
+
+      <div class="channel-fields hidden" id="twilio_whatsapp-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your WhatsApp Number</label>
+        <input type="text" name="twilio_whatsapp_phone" placeholder="+919876543210" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
+          <b class="block mb-1">Admin setup required on .env:</b>
+          <code class="block">TWILIO_ACCOUNT_SID</code>
+          <code class="block">TWILIO_AUTH_TOKEN</code>
+        </div>
+      </div>
+
+      <div class="channel-fields hidden" id="pushover-fields">
+        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Pushover User Key</label>
+        <input type="text" name="pushover_user_key" placeholder="uXXXXXXXXXXXXXXXXX" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+      </div>
+
+      <button type="submit" class="w-full h-touch-target bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save & Continue</button>
+    </form>
+    <div id="prefsStatus" class="mt-3 text-sm"></div>
+  </div>
+</div>
+
+{% else %}
+
+{% include '_dashboard.html' %}
+
+{% endif %}
+</main>
+
+{% if authed and prefs_complete %}
+<nav class="fixed bottom-0 left-0 right-0 h-[56px] bg-surface border-t border-outline-variant flex justify-around items-center z-50 safe-pb">
+  <button class="nav-tab flex flex-col items-center justify-center text-secondary transition-colors active:scale-95 tap-highlight-transparent bg-transparent border-none cursor-pointer" onclick="switchTab('home')" id="tab-home-btn">
+    <span class="material-symbols-outlined text-[20px] md:text-[22px]">home</span>
+    <span class="font-label-caps text-[9px] md:text-[10px] mt-0.5">Home</span>
+  </button>
+  <button class="nav-tab flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:opacity-100 transition-colors active:scale-95 tap-highlight-transparent bg-transparent border-none cursor-pointer" onclick="switchTab('entries')" id="tab-entries-btn">
+    <span class="material-symbols-outlined text-[20px] md:text-[22px]">description</span>
+    <span class="font-label-caps text-[9px] md:text-[10px] mt-0.5">Entries</span>
+  </button>
+  <button class="nav-tab flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:opacity-100 transition-colors active:scale-95 tap-highlight-transparent bg-transparent border-none cursor-pointer" onclick="switchTab('alerts')" id="tab-alerts-btn">
+    <span class="material-symbols-outlined text-[20px] md:text-[22px]">notifications</span>
+    <span class="font-label-caps text-[9px] md:text-[10px] mt-0.5">Alerts</span>
+  </button>
+  <button class="nav-tab flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:opacity-100 transition-colors active:scale-95 tap-highlight-transparent bg-transparent border-none cursor-pointer" onclick="switchTab('settings')" id="tab-settings-btn">
+    <span class="material-symbols-outlined text-[20px] md:text-[22px]">settings</span>
+    <span class="font-label-caps text-[9px] md:text-[10px] mt-0.5">Settings</span>
+  </button>
+</nav>
+{% endif %}
+
+<div class="toast fixed bottom-24 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-5 py-3 rounded-xl text-sm opacity-0 transition-opacity duration-200 pointer-events-none z-[100] shadow-lg" id="toast" role="alert" aria-live="polite"></div>
+
+<script>
+{% if not authed and needs_creds %}
+document.getElementById('credsFile').addEventListener('change', function() { document.getElementById('uploadBtn').disabled = !this.files.length; });
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(); fd.append('file', document.getElementById('credsFile').files[0]);
+  const btn = document.getElementById('uploadBtn'); const st = document.getElementById('uploadStatus');
+  btn.disabled = true; btn.textContent = 'Uploading...';
+  try {
+    const r = await fetch('/upload-credentials', { method:'POST', body:fd });
+    const d = await r.json();
+    if (d.status==='ok') { st.innerHTML='Done! Reloading...'; location.reload(); }
+    else { st.innerHTML='Error: '+(d.error||'Failed'); btn.disabled=false; btn.textContent='Upload'; }
+  } catch(e) { st.innerHTML='Error'; btn.disabled=false; btn.textContent='Upload'; }
+});
+{% endif %}
+
+{% if not prefs_complete and authed %}
+(async function() {
+  try {
+    const r = await fetch('/status'); const d = await r.json();
+    if (d.prefs_complete) location.reload();
+  } catch(e) {}
+})();
+
+function selectChannel(el) {
+  document.querySelectorAll('.channel-fields').forEach(f => f.classList.add('hidden'));
+  document.querySelectorAll('.grid label').forEach(l => l.classList.remove('border-secondary', 'bg-secondary/5'));
+  el.classList.add('border-secondary', 'bg-secondary/5');
+  el.querySelector('input[type="radio"]').checked = true;
+  const fields = document.getElementById(el.querySelector('input').value + '-fields');
+  if (fields) fields.classList.remove('hidden');
+}
+
+function validateSlackUrl() {
+  const el = document.getElementById('slackUrlInput');
+  const st = document.getElementById('slackUrlStatus');
+  if (!el || !st) return;
+  const v = el.value.trim();
+  if (!v) { st.textContent = ''; return; }
+  if (v.startsWith('https://hooks.slack.com/')) { st.innerHTML = '<span style="color:var(--color-success)">Valid URL</span>'; }
+  else { st.innerHTML = '<span style="color:var(--color-error)">Must start with https://hooks.slack.com/</span>'; }
+}
+
+document.getElementById('prefsForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = this.querySelector('button[type="submit"]'); const st = document.getElementById('prefsStatus');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const fd = new FormData(this);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { st.innerHTML='Saved! Loading dashboard...'; location.reload(); }
+    else { st.innerHTML='Error: '+(d.error||'Failed'); btn.disabled=false; btn.textContent='Save & Continue'; }
+  } catch(e) { st.innerHTML='Error'; btn.disabled=false; btn.textContent='Save & Continue'; }
+});
+{% endif %}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const icon = document.getElementById('themeIcon');
+  html.classList.toggle('dark');
+  const isDark = html.classList.contains('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+  const meta = document.querySelector('meta[name="color-scheme"]');
+  if (meta) meta.content = isDark ? 'dark' : 'light';
+}
+
+(function() {
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefersDark)) {
+    document.documentElement.classList.add('dark');
+    const icon = document.getElementById('themeIcon');
+    if (icon) icon.textContent = 'light_mode';
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.content = 'dark';
+  }
+})();
+
+{% if prefs_complete and authed %}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('!opacity-100');
+  setTimeout(() => t.classList.remove('!opacity-100'), 3000);
+}
+
+async function testNotification() {
+  try {
+    const r = await fetch('/test-notification', { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'ok') showToast('Test notification sent!');
+    else showToast('Error: ' + (d.error || 'Failed'));
+  } catch(e) { showToast('Error sending test'); }
+}
+
+{% if prefs.notification_channel == 'telegram' and not prefs.telegram_chat_id %}
+(function autoPollTelegram() {
+  const st = document.getElementById('telegramStatus');
+  if (!st) return;
+  let attempts = 0;
+  const iv = setInterval(async () => {
+    attempts++;
+    if (!st) { clearInterval(iv); return; }
+    try {
+      const r = await fetch('/verify-telegram'); const d = await r.json();
+      if (d.status === 'ok') {
+        st.innerHTML = '<span class="status-dot green"></span> Connected!';
+        showToast('Telegram linked!');
+        clearInterval(iv);
+        setTimeout(() => location.reload(), 1200);
+      } else if (attempts > 60) {
+        st.innerHTML = 'Still waiting — open Telegram and message the bot';
+        clearInterval(iv);
       }
+    } catch(e) { }
+  }, 3000);
+})();
+{% endif %}
+
+async function saveWhatsAppApikey() {
+  const input = document.getElementById('whatsappApikey');
+  const st = document.getElementById('whatsappStatus');
+  const apikey = input.value.trim();
+  if (!apikey) { st.innerHTML = 'Please paste the API key first'; return; }
+  st.innerHTML = 'Verifying...';
+  try {
+    const fd = new FormData(); fd.append('apikey', apikey);
+    const r = await fetch('/save-whatsapp-apikey', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { showToast('WhatsApp connected!'); setTimeout(() => location.reload(), 1200); }
+    else { st.innerHTML = 'Error: '+(d.error||'Failed'); }
+  } catch(e) { st.innerHTML = 'Error'; }
+}
+
+async function saveSlackWebhook(e) {
+  e.preventDefault();
+  const input = document.getElementById('slackWebhookUrl');
+  const url = input.value.trim();
+  if (!url) return;
+  if (!url.startsWith('https://hooks.slack.com/')) { showToast('Invalid URL'); return; }
+  try {
+    const fd = new FormData(); fd.append('channel', 'slack'); fd.append('slack_webhook_url', url);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { showToast('Slack connected!'); setTimeout(() => location.reload(), 1200); }
+    else { showToast('Error: '+(d.error||'Failed')); }
+  } catch(e) { showToast('Error'); }
+}
+
+async function saveDiscordWebhook(e) {
+  e.preventDefault();
+  const input = document.getElementById('discordWebhookUrl');
+  const url = input.value.trim();
+  if (!url) return;
+  try {
+    const fd = new FormData(); fd.append('channel', 'discord'); fd.append('discord_webhook_url', url);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { showToast('Discord connected!'); setTimeout(() => location.reload(), 1200); }
+    else { showToast('Error: '+(d.error||'Failed')); }
+  } catch(e) { showToast('Error'); }
+}
+
+async function saveWhatsAppCloud(e) {
+  e.preventDefault();
+  const input = document.getElementById('whatsappCloudPhone');
+  const phone = input.value.trim();
+  if (!phone) return;
+  try {
+    const fd = new FormData(); fd.append('channel', 'whatsapp_cloud'); fd.append('whatsapp_cloud_phone', phone);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { showToast('WhatsApp Cloud connected!'); setTimeout(() => location.reload(), 1200); }
+    else { showToast('Error: '+(d.error||'Failed')); }
+  } catch(e) { showToast('Error'); }
+}
+
+async function saveTwilioWhatsApp(e) {
+  e.preventDefault();
+  const input = document.getElementById('twilioWhatsappPhone');
+  const phone = input.value.trim();
+  if (!phone) return;
+  try {
+    const fd = new FormData(); fd.append('channel', 'twilio_whatsapp'); fd.append('twilio_whatsapp_phone', phone);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { showToast('Twilio WhatsApp connected!'); setTimeout(() => location.reload(), 1200); }
+    else { showToast('Error: '+(d.error||'Failed')); }
+  } catch(e) { showToast('Error'); }
+}
+
+async function savePushoverKey(e) {
+  e.preventDefault();
+  const input = document.getElementById('pushoverUserKey');
+  const key = input.value.trim();
+  if (!key) return;
+  try {
+    const fd = new FormData(); fd.append('channel', 'pushover'); fd.append('pushover_user_key', key);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status==='ok') { showToast('Pushover connected!'); setTimeout(() => location.reload(), 1200); }
+    else { showToast('Error: '+(d.error||'Failed')); }
+  } catch(e) { showToast('Error'); }
+}
+
+setInterval(() => {
+  fetch('/logs').then(r=>r.json()).then(logs => {
+    const box = document.getElementById('logBox');
+    if (box && logs.length) { box.innerHTML = logs.map(l=>'<div>'+l+'</div>').join(''); box.scrollTop = box.scrollHeight; }
+  }).catch(()=>{});
+}, 5000);
+
+(function checkAutoStatus() {
+  const el = document.getElementById('autoStatus');
+  const section = document.getElementById('automationSection');
+  const badge = document.getElementById('autoBadge');
+  if (!el) return;
+  fetch('/automation-status').then(r=>r.json()).then(d => {
+    if (d.scheduler_alive) {
+      el.innerHTML = '<span class="status-dot green"></span> Running (every '+d.poll_interval_minutes+'min)';
+      if (section) section.classList.remove('hidden');
+      if (badge) { badge.textContent = 'Live'; badge.style.background = '#16a34a30'; badge.style.color = '#16a34a'; }
     }
+  }).catch(() => {
+    el.innerHTML = '<span class="status-dot gray"></span> Offline';
+  });
+})();
 
-    document.getElementById('prefsForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const btn = this.querySelector('button[type="submit"]'); const st = document.getElementById('prefsStatus');
-      btn.disabled = true; btn.textContent = 'Saving...';
-      try {
-        const fd = new FormData(this);
-        const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
-        const d = await r.json();
-        if (d.status==='ok') { st.innerHTML='Saved! Loading dashboard...'; location.reload(); }
-        else { st.innerHTML='Error: '+(d.error||'Failed'); btn.disabled=false; btn.textContent='Save & Continue'; }
-      } catch(e) { st.innerHTML='Error'; btn.disabled=false; btn.textContent='Save & Continue'; }
-    });
-    {% endif %}
+(function setCronUrl() {
+  const url = window.location.origin + '/cron/gotjobalert_auto_2026';
+  const el1 = document.getElementById('cronUrl');
+  const el2 = document.getElementById('cronUrl2');
+  if (el1) el1.textContent = url;
+  if (el2) el2.textContent = url;
+})();
 
-    {% if prefs_complete and authed %}
+function copyCronUrl() {
+  const el = document.getElementById('cronUrl');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('URL copied!'))
+  .catch(() => {
+    const range = document.createRange(); range.selectNode(el);
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    document.execCommand('copy'); showToast('Copied!');
+  });
+}
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg; t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 3000);
-    }
+function copyCronUrl2() {
+  const el = document.getElementById('cronUrl2');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('URL copied!'))
+  .catch(() => {
+    const range = document.createRange(); range.selectNode(el);
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    document.execCommand('copy'); showToast('Copied!');
+  });
+}
 
-    {% if prefs.notification_channel == 'telegram' and not prefs.telegram_chat_id %}
-    (function autoPollTelegram() {
-      const st = document.getElementById('telegramStatus');
-      let attempts = 0;
-      const iv = setInterval(async () => {
-        attempts++;
-        if (!st) { clearInterval(iv); return; }
-        try {
-          const r = await fetch('/verify-telegram'); const d = await r.json();
-          if (d.status === 'ok') {
-            st.innerHTML = 'Connected!';
-            st.style.color = '#16a34a';
-            showToast('Telegram linked!');
-            clearInterval(iv);
-            setTimeout(() => location.reload(), 1200);
-          } else if (attempts > 60) {
-            st.innerHTML = 'Still waiting — open Telegram and message the bot';
-            clearInterval(iv);
-          }
-        } catch(e) { }
-      }, 3000);
-    })();
-    {% endif %}
+(function checkNotifStatus() {
+  const el = document.getElementById('notifStatus');
+  if (!el) return;
+  const channel = '{{ prefs.notification_channel }}';
+  {% if prefs.notification_channel == 'telegram' %}
+  const chatId = '{{ prefs.telegram_chat_id }}';
+  el.innerHTML = chatId ? '<span class="status-dot green"></span>Telegram' : '<span class="status-dot gray"></span>Telegram (not verified)';
+  {% elif prefs.notification_channel == 'slack' %}
+  const url = '{{ prefs.slack_webhook_url }}';
+  el.innerHTML = url ? '<span class="status-dot green"></span>Slack' : '<span class="status-dot gray"></span>Slack (not set)';
+  {% elif prefs.notification_channel == 'whatsapp' %}
+  const apikey = '{{ prefs.whatsapp_apikey }}';
+  el.innerHTML = apikey ? '<span class="status-dot green"></span>WhatsApp' : '<span class="status-dot gray"></span>WhatsApp (not activated)';
+  {% elif prefs.notification_channel == 'whatsapp_cloud' %}
+  const setup = '{{ prefs.whatsapp_cloud_setup }}';
+  el.innerHTML = setup ? '<span class="status-dot green"></span>WhatsApp Cloud' : '<span class="status-dot gray"></span>WhatsApp Cloud (not set)';
+  {% elif prefs.notification_channel == 'twilio_whatsapp' %}
+  const twilioPhone = '{{ prefs.twilio_whatsapp_phone }}';
+  el.innerHTML = twilioPhone ? '<span class="status-dot green"></span>Twilio WhatsApp' : '<span class="status-dot gray"></span>Twilio WhatsApp (not set)';
+  {% elif prefs.notification_channel == 'pushover' %}
+  const pushoverKey = '{{ prefs.pushover_user_key }}';
+  el.innerHTML = pushoverKey ? '<span class="status-dot green"></span>Pushover' : '<span class="status-dot gray"></span>Pushover (not set)';
+  {% else %}
+  el.innerHTML = '<span class="status-dot gray"></span>None';
+  {% endif %}
+})();
 
-    async function saveWhatsAppApikey() {
-      const input = document.getElementById('whatsappApikey');
-      const st = document.getElementById('whatsappStatus');
-      const apikey = input.value.trim();
-      if (!apikey) { st.innerHTML = 'Please paste the API key first'; st.style.color = '#dc2626'; return; }
-      st.innerHTML = 'Verifying...';
-      try {
-        const fd = new FormData(); fd.append('apikey', apikey);
-        const r = await fetch('/save-whatsapp-apikey', { method:'POST', body:new URLSearchParams(fd) });
-        const d = await r.json();
-        if (d.status==='ok') {
-          st.innerHTML = 'WhatsApp connected!';
-          st.style.color = '#16a34a';
-          showToast('WhatsApp connected!');
-          setTimeout(() => location.reload(), 1200);
-        } else { st.innerHTML = 'Error: '+(d.error||'Failed'); st.style.color = '#dc2626'; }
-      } catch(e) { st.innerHTML = 'Error'; st.style.color = '#dc2626'; }
-    }
+function switchTab(tab) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.add('hidden'));
+  const section = document.getElementById('section-' + tab);
+  if (section) section.classList.remove('hidden');
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.classList.remove('text-secondary', 'opacity-100');
+    t.classList.add('text-on-surface-variant', 'opacity-60');
+  });
+  const btn = document.getElementById('tab-' + tab + '-btn');
+  if (btn) {
+    btn.classList.remove('text-on-surface-variant', 'opacity-60');
+    btn.classList.add('text-secondary', 'opacity-100');
+    const icon = btn.querySelector('.material-symbols-outlined');
+    if (icon) icon.style.setProperty('font-variation-settings', "'FILL' 1");
+  }
+  document.querySelectorAll('.nav-tab .material-symbols-outlined').forEach(i => {
+    if (!i.closest('.text-secondary')) i.style.setProperty('font-variation-settings', "'FILL' 0");
+  });
+}
 
-    async function saveSlackWebhook() {
-      const input = document.getElementById('slackWebhookInput');
-      const st = document.getElementById('slackSaveStatus');
-      if (!input || !st) return;
-      const url = input.value.trim();
-      if (!url) { st.innerHTML = 'Please paste the webhook URL'; st.style.color = '#dc2626'; return; }
-      if (!url.startsWith('https://hooks.slack.com/')) { st.innerHTML = 'Invalid URL — must start with https://hooks.slack.com/'; st.style.color = '#dc2626'; return; }
-      st.innerHTML = 'Saving...';
-      try {
-        const fd = new FormData(); fd.append('channel', 'slack'); fd.append('slack_webhook_url', url);
-        const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
-        const d = await r.json();
-        if (d.status==='ok') {
-          st.innerHTML = 'Slack connected!';
-          st.style.color = '#16a34a';
-          showToast('Slack connected!');
-          setTimeout(() => location.reload(), 1200);
-        } else { st.innerHTML = 'Error: '+(d.error||'Failed'); st.style.color = '#dc2626'; }
-      } catch(e) { st.innerHTML = 'Error'; st.style.color = '#dc2626'; }
-    }
+document.body.addEventListener('htmx:afterSwap', function() {
+  const activeTab = document.body.dataset.activeTab || 'home';
+  switchTab(activeTab);
+});
 
-    async function triggerCheck() {
-      const btn = document.getElementById('triggerBtn');
-      btn.disabled = true; btn.textContent = 'Checking...';
-      try {
-        const r = await fetch('/trigger'); const d = await r.json();
-        if (d.status==='ok') { showToast('Found '+d.count+' entries'); setTimeout(()=>location.reload(), 1000); }
-        else { showToast('Error: '+d.error); btn.disabled=false; btn.textContent='Check Now'; }
-      } catch(e) { showToast('Network error'); btn.disabled=false; btn.textContent='Check Now'; }
-      return false;
-    }
+document.body.addEventListener('htmx:beforeSwap', function() {
+  const active = document.querySelector('.nav-tab.text-secondary');
+  if (active) document.body.dataset.activeTab = active.id.replace('-btn', '');
+});
 
-    async function sendTestEmail() {
-      const btn = document.getElementById('testEmailBtn');
-      btn.disabled = true; btn.textContent = 'Sending...';
-      try {
-        const r = await fetch('/send-test-email'); const d = await r.json();
-        if (d.status==='ok') { showToast('Test email sent!'); btn.disabled=false; btn.textContent='Send Test Email'; }
-        else { showToast('Error: '+d.error); btn.disabled=false; btn.textContent='Send Test Email'; }
-      } catch(e) { showToast('Error'); btn.disabled=false; btn.textContent='Send Test Email'; }
-      return false;
-    }
-
-    async function testNotification() {
-      const btn = document.getElementById('testNotifBtn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Testing...'; }
-      try {
-        const r = await fetch('/test-notification', { method:'POST' });
-        const d = await r.json();
-        if (d.status==='ok') { showToast('Test notification sent!'); }
-        else { showToast('Error: '+d.error); }
-      } catch(e) { showToast('Error sending test'); }
-      if (btn) { btn.disabled = false; btn.textContent = 'Test Notification'; }
-      return false;
-    }
-
-    setInterval(() => {
-      fetch('/logs').then(r=>r.json()).then(logs => {
-        const box = document.getElementById('logBox');
-        if (logs.length) { box.innerHTML = logs.map(l=>'<div>'+l+'</div>').join(''); box.scrollTop = box.scrollHeight; }
-      }).catch(()=>{});
-    }, 5000);
-
-    (function checkAutoStatus() {
-      const el = document.getElementById('autoStatus');
-      const section = document.getElementById('automationSection');
-      const badge = document.getElementById('autoBadge');
-      fetch('/automation-status').then(r=>r.json()).then(d => {
-        if (d.scheduler_alive) {
-          el.innerHTML = '<span class="status-dot green"></span> Running (every '+d.poll_interval_minutes+'min)';
-          if (section) section.style.display = 'block';
-          if (badge) { badge.textContent = 'Live'; badge.style.background = '#dcfce7'; badge.style.color = '#16a34a'; }
-        }
-      }).catch(() => {
-        el.innerHTML = '<span class="status-dot gray"></span> Offline';
-      });
-    })();
-
-    (function setCronUrl() {
-      const el = document.getElementById('cronUrl');
-      if (el) el.textContent = window.location.origin + '/cron/gotjobalert_auto_2026';
-    })();
-
-    function copyCronUrl() {
-      const el = document.getElementById('cronUrl');
-      if (!el) return;
-      navigator.clipboard.writeText(el.textContent).then(() => showToast('URL copied!'))
-      .catch(() => {
-        const range = document.createRange(); range.selectNode(el);
-        window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
-        document.execCommand('copy'); showToast('Copied!');
-      });
-    }
-
-    (function checkNotifStatus() {
-      const el = document.getElementById('notifStatus');
-      if (!el) return;
-      const channel = '{{ prefs.notification_channel }}';
-      {% if prefs.notification_channel == 'telegram' %}
-        const chatId = '{{ prefs.telegram_chat_id }}';
-        el.innerHTML = chatId ? '<span class="status-dot green"></span> Telegram' : '<span class="status-dot gray"></span> Telegram (not verified)';
-      {% elif prefs.notification_channel == 'slack' %}
-        const url = '{{ prefs.slack_webhook_url }}';
-        el.innerHTML = url ? '<span class="status-dot green"></span> Slack' : '<span class="status-dot gray"></span> Slack (not set)';
-      {% elif prefs.notification_channel == 'whatsapp' %}
-        const apikey = '{{ prefs.whatsapp_apikey }}';
-        el.innerHTML = apikey ? '<span class="status-dot green"></span> WhatsApp' : '<span class="status-dot gray"></span> WhatsApp (not activated)';
-      {% else %}
-        el.innerHTML = '<span class="status-dot gray"></span> None';
-      {% endif %}
-    })();
-    {% endif %}
-  </script>
+switchTab('home');
+{% endif %}
+</script>
 </body>
 </html>

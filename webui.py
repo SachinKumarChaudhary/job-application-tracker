@@ -14,11 +14,16 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import Flow
-from src.config import logger, POLL_INTERVAL_MINUTES, BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, CRON_SECRET
+from src.config import logger, POLL_INTERVAL_MINUTES, BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, CRON_SECRET, GMAIL_QUERY
 from src.notifier import _send_slack_webhook, _send_whatsapp_callmebot, _send_telegram
 import requests as http_requests
 
 app = Flask(__name__)
+
+@app.after_request
+def no_cache(response):
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 _secret_key_file = BASE_DIR / ".secret_key"
 if _secret_key_file.exists():
@@ -38,7 +43,7 @@ SCOPES = [
 CREDENTIALS_DIR = BASE_DIR / "credentials"
 CREDENTIALS_PATH = CREDENTIALS_DIR / "credentials.json"
 PREFS_PATH = BASE_DIR / "user_prefs.json"
-SHEET_HEADERS = ["Company Name", "Job Role", "Application Date", "Email Subject", "Sender Email", "Message ID", "Alert Sent", "Email Type", "Summary", "Parser"]
+SHEET_HEADERS = ["Company Name", "Job Role", "Application Date", "Email Subject", "Sender Email", "Message ID", "Alert Sent", "Email Type", "Summary", "Location", "Salary", "Next Step", "Parser"]
 
 last_run: dict[str, datetime | None] = {}
 last_count: dict[str, int] = {}
@@ -53,8 +58,32 @@ def log(email: str, msg: str) -> None:
     logger.info(f"[{email}] {msg}")
 
 
+def normalize_email(email: str) -> str:
+    local, _, domain = email.partition('@')
+    domain = domain.lower()
+    if domain in ('gmail.com', 'googlemail.com'):
+        local = local.replace('.', '').lower()
+    return f"{local}@{domain}"
+
 def get_user_email() -> str | None:
-    return session.get("user_email")
+    email = session.get("user_email")
+    if not email:
+        return None
+    norm = normalize_email(email)
+    if norm != email:
+        prefs = load_prefs()
+        if email in prefs and norm not in prefs:
+            prefs[norm] = prefs.pop(email)
+            save_prefs(prefs)
+        old_token = get_token_path(email)
+        new_token = get_token_path(norm)
+        if old_token.exists() and not new_token.exists():
+            old_token.rename(new_token)
+        for d in (last_run, last_count, last_error, log_buffer):
+            if email in d:
+                d[norm] = d.pop(email)
+        session["user_email"] = norm
+    return norm
 
 
 def load_prefs() -> dict:
@@ -70,12 +99,22 @@ def save_prefs(prefs: dict) -> None:
 
 
 def get_user_prefs(email: str) -> dict:
-    return load_prefs().get(email, {})
+    prefs = load_prefs()
+    if email in prefs:
+        return prefs[email]
+    for k, v in prefs.items():
+        if normalize_email(k) == email:
+            return v
+    return {}
 
 
 def set_user_pref(email: str, key: str, value: str) -> None:
     prefs = load_prefs()
-    prefs.setdefault(email, {})[key] = value
+    norm = normalize_email(email)
+    for k in list(prefs.keys()):
+        if k != norm and normalize_email(k) == norm:
+            prefs[norm] = {**prefs.pop(k), **prefs.get(norm, {})}
+    prefs.setdefault(norm, {})[key] = value
     save_prefs(prefs)
 
 
@@ -86,6 +125,12 @@ def get_token_path(email: str) -> Path:
 
 def get_creds(email: str) -> Credentials | None:
     path = get_token_path(email)
+    if not path.exists():
+        for f in CREDENTIALS_DIR.glob("token_*.json"):
+            stored = base64.urlsafe_b64decode(f.stem.replace("token_", "") + "==").decode()
+            if normalize_email(stored) == normalize_email(email) and stored != email:
+                f.rename(path)
+                break
     if not path.exists():
         return None
     try:
@@ -128,7 +173,7 @@ def _find_or_create_sheet(email: str) -> str:
 def ensure_sheet(email: str) -> str:
     sid = _find_or_create_sheet(email)
     sheets = build("sheets", "v4", credentials=get_creds(email))
-    result = sheets.spreadsheets().values().get(spreadsheetId=sid, range="A1:J1").execute()
+    result = sheets.spreadsheets().values().get(spreadsheetId=sid, range="A1:M1").execute()
     existing = result.get("values", [[]])[0]
     if existing != SHEET_HEADERS[:len(existing)]:
         sheets.spreadsheets().values().update(
@@ -137,6 +182,118 @@ def ensure_sheet(email: str) -> str:
             body={"values": [SHEET_HEADERS]}
         ).execute()
     return f"https://docs.google.com/spreadsheets/d/{sid}"
+
+
+def format_sheet(email: str) -> bool:
+    sid = _find_or_create_sheet(email)
+    sheets = build("sheets", "v4", credentials=get_creds(email))
+
+    header_bg = {"red": 0.16, "green": 0.25, "blue": 0.45}
+    header_fg = {"red": 1, "green": 1, "blue": 1}
+    accent = {"red": 0.20, "green": 0.34, "blue": 0.57}
+    light = {"red": 0.96, "green": 0.97, "blue": 0.99}
+    white = {"red": 1, "green": 1, "blue": 1}
+
+    requests = []
+
+    try:
+        meta = sheets.spreadsheets().get(spreadsheetId=sid, fields="sheets.bandedRanges").execute()
+        existing = meta.get("sheets", [{}])[0].get("bandedRanges", [])
+        for br in existing:
+            rid = br.get("bandedRangeId")
+            if rid:
+                requests.append({"deleteBanding": {"bandedRangeId": rid}})
+    except Exception:
+        pass
+
+    requests.append({
+        "addBanding": {
+            "bandedRange": {
+                "range": {"sheetId": 0, "startRowIndex": 1},
+                "rowProperties": {
+                    "headerColor": header_bg,
+                    "firstBandColor": light,
+                    "secondBandColor": white,
+                }
+            }
+        }
+    })
+
+    requests.append({
+        "repeatCell": {
+            "range": {"sheetId": 0, "startRowIndex": 0, "endRowIndex": 1},
+            "cell": {
+                "userEnteredFormat": {
+                    "backgroundColor": header_bg,
+                    "horizontalAlignment": "CENTER",
+                    "verticalAlignment": "MIDDLE",
+                    "textFormat": {
+                        "bold": True,
+                        "foregroundColor": header_fg,
+                        "fontSize": 11,
+                    },
+                }
+            },
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,textFormat.bold,textFormat.foregroundColor,textFormat.fontSize)"
+        }
+    })
+
+    requests.append({
+        "updateBorders": {
+            "range": {"sheetId": 0, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 13},
+            "bottom": {"style": "SOLID", "width": 2, "color": accent},
+        }
+    })
+
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {"sheetId": 0, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 13}
+        }
+    })
+
+    requests.append({
+        "updateSheetProperties": {
+            "properties": {"sheetId": 0, "gridProperties": {"frozenRowCount": 1}},
+            "fields": "gridProperties.frozenRowCount"
+        }
+    })
+
+    FONT_SIZE = 10
+    wrap_fields = "userEnteredFormat(textFormat.fontSize,wrapStrategy)"
+    align_fields = "userEnteredFormat(horizontalAlignment,verticalAlignment)"
+    all_fmt_fields = f"{wrap_fields},{align_fields}"
+
+    requests.append({
+        "repeatCell": {
+            "range": {"sheetId": 0, "startRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 13},
+            "cell": {
+                "userEnteredFormat": {
+                    "textFormat": {"fontSize": FONT_SIZE},
+                    "wrapStrategy": "WRAP",
+                    "verticalAlignment": "MIDDLE",
+                }
+            },
+            "fields": wrap_fields
+        }
+    })
+
+    date_cols = [2]
+    for ci in date_cols:
+        requests.append({
+            "repeatCell": {
+                "range": {"sheetId": 0, "startRowIndex": 1, "startColumnIndex": ci, "endColumnIndex": ci + 1},
+                "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        })
+
+    try:
+        sheets.spreadsheets().batchUpdate(spreadsheetId=sid, body={"requests": requests}).execute()
+        log(email, "Sheet formatted beautifully")
+        return True
+    except Exception as e:
+        log(email, f"Format failed: {e}")
+        return False
 
 
 def send_test_email(email: str) -> None:
@@ -164,7 +321,7 @@ def run_poll(email: str) -> None:
 
         results = gmail.users().messages().list(
             userId="me",
-            q='subject:"application received" OR subject:"thank you for applying" OR subject:"offer letter"',
+            q=f"({GMAIL_QUERY}) is:unread",
             maxResults=20,
         ).execute()
 
@@ -180,6 +337,20 @@ def run_poll(email: str) -> None:
         existing = sheets.spreadsheets().values().get(spreadsheetId=sid, range="F:F").execute()
         if existing.get("values"):
             known_ids = {r[0] for r in existing["values"][1:] if r}
+
+        existing_all = sheets.spreadsheets().values().get(spreadsheetId=sid, range="A:M").execute()
+        existing_rows = existing_all.get("values", [])[1:] if existing_all.get("values") else []
+        company_role_map = {}
+        for ri, row in enumerate(existing_rows):
+            if len(row) >= 13:
+                key = (row[0].strip().lower(), row[1].strip().lower())
+                company_role_map[key] = (ri + 2, row[7])
+
+        STATUS_PRIORITY = {
+            "rejection": 1, "other": 2, "application_received": 3,
+            "assessment": 4, "phone_screen": 5, "interview_invitation": 6,
+            "technical_interview": 7, "offer_letter": 8,
+        }
 
         count = 0
 
@@ -197,13 +368,34 @@ def run_poll(email: str) -> None:
                     gmail.users().messages().modify(userId="me", id=m["id"], body={"removeLabelIds": ["UNREAD"]}).execute()
                     continue
 
-                sheets.spreadsheets().values().append(
-                    spreadsheetId=sid, range="A:G",
-                    valueInputOption="RAW",
-                    insertDataOption="INSERT_ROWS",
-                    body={"values": [app.to_sheet_row()]}
-                ).execute()
-                known_ids.add(msg_id)
+                match_key = (app.company_name.strip().lower(), app.job_role.strip().lower())
+                if match_key in company_role_map:
+                    row_num, old_type_label = company_role_map[match_key]
+                    old_type = next((k for k, v in EMAIL_TYPE_LABEL.items() if v == old_type_label), "other")
+                    new_priority = STATUS_PRIORITY.get(app.email_type, 0)
+                    old_priority = STATUS_PRIORITY.get(old_type, 0)
+                    if new_priority > old_priority:
+                        sheet_row = app.to_sheet_row()
+                        body = {"values": [sheet_row]}
+                        sheets.spreadsheets().values().update(
+                            spreadsheetId=sid,
+                            range=f"A{row_num}:M{row_num}",
+                            valueInputOption="RAW",
+                            body=body,
+                        ).execute()
+                        logger.info(f"Updated row {row_num}: {app.company_name} - {app.job_role} ({old_type_label} -> {app.email_type})")
+                    else:
+                        logger.debug(f"Skipped update for {app.company_name} - {app.job_role}: {app.email_type} <= {old_type_label}")
+                        gmail.users().messages().modify(userId="me", id=m["id"], body={"removeLabelIds": ["UNREAD"]}).execute()
+                        continue
+                else:
+                    sheets.spreadsheets().values().append(
+                        spreadsheetId=sid, range="A:M",
+                        valueInputOption="RAW",
+                        insertDataOption="INSERT_ROWS",
+                        body={"values": [app.to_sheet_row()]}
+                    ).execute()
+                    known_ids.add(msg_id)
 
                 from src.notifier import notify_single
                 prefs = get_user_prefs(email)
@@ -238,6 +430,36 @@ def scheduler_loop() -> None:
         time.sleep(POLL_INTERVAL_MINUTES * 60)
 
 
+# ── Shared helpers ─────────────────────────────────────────
+
+def _get_dashboard_context(email: str) -> dict:
+    prefs = get_user_prefs(email)
+    sheet_url = rows = sheet_error = ""
+    try:
+        sheet_url = ensure_sheet(email)
+        svc = get_sheets_service(email)
+        sid = _find_or_create_sheet(email)
+        data = svc.spreadsheets().values().get(spreadsheetId=sid, range="A:M").execute()
+        vals = data.get("values", [])
+        if vals:
+            rows = vals[1:][-20:]
+    except Exception as e:
+        sheet_error = str(e)
+    return dict(
+        authed=True, email=email, prefs=prefs,
+        prefs_complete="notification_channel" in prefs,
+        sheet_url=sheet_url, rows=rows,
+        headers=SHEET_HEADERS[:5] + ["Stage", "Summary", "Location", "Salary", "Next Step", "Parser"],
+        last_run=last_run.get(email), last_count=last_count.get(email, 0),
+        last_error=last_error.get(email, ""), sheet_error=sheet_error,
+        interval=POLL_INTERVAL_MINUTES,
+        logs=log_buffer.get(email, [])[-30:],
+        telegram_bot_username=TELEGRAM_BOT_USERNAME,
+        has_telegram_bot=bool(TELEGRAM_BOT_TOKEN),
+        scheduler_alive=_scheduler_alive["running"],
+    )
+
+
 # ── Routes ────────────────────────────────────────────────
 
 @app.route("/")
@@ -246,32 +468,7 @@ def index():
     if not email or not get_creds(email):
         setup_needed = not CREDENTIALS_PATH.exists()
         return render_template("index.html", authed=False, needs_creds=setup_needed, redirect_uri=redirect_uri())
-
-    prefs = get_user_prefs(email)
-    prefs_complete = "notification_channel" in prefs
-
-    sheet_url = rows = sheet_error = ""
-    try:
-        sheet_url = ensure_sheet(email)
-        svc = get_sheets_service(email)
-        sid = _find_or_create_sheet(email)
-        data = svc.spreadsheets().values().get(spreadsheetId=sid, range="A:J").execute()
-        vals = data.get("values", [])
-        if vals:
-            rows = vals[1:][-20:]
-    except Exception as e:
-        sheet_error = str(e)
-
-    return render_template("index.html",
-        authed=True, email=email, prefs=prefs, prefs_complete=prefs_complete,
-        sheet_url=sheet_url,         rows=rows, headers=SHEET_HEADERS[:5] + ["Type", "Summary", "Parser"],
-        last_run=last_run.get(email), last_count=last_count.get(email, 0),
-        last_error=last_error.get(email, ""), sheet_error=sheet_error,
-        interval=POLL_INTERVAL_MINUTES,
-        logs=log_buffer.get(email, [])[-30:],
-        telegram_bot_username=TELEGRAM_BOT_USERNAME,
-        has_telegram_bot=bool(TELEGRAM_BOT_TOKEN),
-    )
+    return render_template("index.html", **_get_dashboard_context(email))
 
 
 @app.route("/auth")
@@ -289,7 +486,7 @@ def auth():
 @app.route("/callback")
 def callback():
     if "oauth_state" not in session:
-        return render_template("index.html", authed=False, needs_creds=False, redirect_uri=redirect_uri(), oauth_error="Session expired — please try again")
+        return redirect("/")
     try:
         flow = Flow.from_client_secrets_file(str(CREDENTIALS_PATH), scopes=SCOPES, redirect_uri=redirect_uri())
         flow.code_verifier = session.pop("code_verifier", None)
@@ -300,7 +497,7 @@ def callback():
 
         CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
         get_token_path(email).write_text(flow.credentials.to_json())
-        session["user_email"] = email
+        session["user_email"] = normalize_email(email)
         log(email, "Gmail connected")
         return redirect("/")
     except Exception as e:
@@ -321,7 +518,7 @@ def save_prefs_route():
         return jsonify({"error": "Not authenticated"}), 401
 
     channel = request.form.get("channel", "none")
-    if channel not in ("whatsapp", "slack", "telegram", "none"):
+    if channel not in ("whatsapp", "slack", "telegram", "discord", "whatsapp_cloud", "twilio_whatsapp", "pushover", "none"):
         return jsonify({"error": "Invalid channel"}), 400
 
     if channel == "none":
@@ -339,6 +536,11 @@ def save_prefs_route():
         apikey = request.form.get("whatsapp_apikey", "").strip()
         if apikey:
             set_user_pref(email, "whatsapp_apikey", apikey)
+    elif channel == "pushover":
+        user_key = request.form.get("pushover_user_key", "").strip()
+        if not user_key:
+            return jsonify({"error": "Pushover User Key required"}), 400
+        set_user_pref(email, "pushover_user_key", user_key)
     elif channel == "slack":
         webhook_url = request.form.get("slack_webhook_url", "").strip()
         if not webhook_url:
@@ -346,6 +548,13 @@ def save_prefs_route():
         if not webhook_url.startswith("https://hooks.slack.com/"):
             return jsonify({"error": "Invalid Slack webhook URL"}), 400
         set_user_pref(email, "slack_webhook_url", webhook_url)
+    elif channel == "discord":
+        webhook_url = request.form.get("discord_webhook_url", "").strip()
+        if not webhook_url:
+            return jsonify({"error": "Webhook URL required"}), 400
+        if not webhook_url.startswith("https://discord.com/api/webhooks/"):
+            return jsonify({"error": "Invalid Discord webhook URL"}), 400
+        set_user_pref(email, "discord_webhook_url", webhook_url)
     elif channel == "telegram":
         username = request.form.get("telegram_username", "").strip().lstrip("@")
         if not username:
@@ -356,6 +565,16 @@ def save_prefs_route():
         set_user_pref(email, "telegram_username", username)
         if username != saved_username:
             set_user_pref(email, "telegram_chat_id", "")
+    elif channel == "whatsapp_cloud":
+        phone = request.form.get("whatsapp_cloud_phone", "").strip()
+        if not phone:
+            return jsonify({"error": "Phone number required"}), 400
+        set_user_pref(email, "whatsapp_cloud_phone", phone)
+    elif channel == "twilio_whatsapp":
+        phone = request.form.get("twilio_whatsapp_phone", "").strip()
+        if not phone:
+            return jsonify({"error": "Phone number required"}), 400
+        set_user_pref(email, "twilio_whatsapp_phone", phone)
 
     log(email, f"Notification channel set: {channel}")
     return jsonify({"status": "ok"})
@@ -367,7 +586,7 @@ def trigger():
     if not email:
         return jsonify({"error": "Not authenticated"}), 401
     run_poll(email)
-    return jsonify({"status": "ok", "count": last_count.get(email, 0)})
+    return render_template("_dashboard.html", **_get_dashboard_context(email))
 
 
 @app.route("/verify-telegram")
@@ -416,12 +635,56 @@ def change_channel():
     if not email:
         return redirect("/")
     prefs = load_prefs()
-    if email in prefs:
-        prefs[email]["notification_channel"] = "none"
+    if email in prefs and "notification_channel" in prefs[email]:
+        del prefs[email]["notification_channel"]
         save_prefs(prefs)
     log(email, "Channel reset — choose a new one")
     return redirect("/")
 
+
+@app.route("/dedup-sheet")
+def dedup_sheet_route():
+    email = get_user_email()
+    if not email:
+        return jsonify({"error": "Not authenticated"}), 401
+    try:
+        sid = _find_or_create_sheet(email)
+        sheets = build("sheets", "v4", credentials=get_creds(email))
+        result = sheets.spreadsheets().values().get(spreadsheetId=sid, range="A:M").execute()
+        rows = result.get("values", [])
+        if not rows:
+            return jsonify({"status": "ok", "removed": 0})
+        seen = {}
+        keep = [rows[0]]
+        dup_count = 0
+        for row in rows[1:]:
+            mid = row[5] if len(row) > 5 else ""
+            if mid and mid in seen:
+                dup_count += 1
+                continue
+            if mid:
+                seen[mid] = True
+            keep.append(row)
+        if dup_count > 0:
+            sheets.spreadsheets().values().clear(spreadsheetId=sid, range="A2:M").execute()
+            if len(keep) > 1:
+                sheets.spreadsheets().values().update(
+                    spreadsheetId=sid, range="A2",
+                    valueInputOption="RAW",
+                    body={"values": keep[1:]}
+                ).execute()
+        log(email, f"Dedup: removed {dup_count} duplicates, kept {len(keep)-1} entries")
+        return jsonify({"status": "ok", "removed": dup_count, "kept": len(keep) - 1})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/format-sheet")
+def format_sheet_route():
+    email = get_user_email()
+    if not email:
+        return jsonify({"error": "Not authenticated"}), 401
+    ok = format_sheet(email)
+    return jsonify({"status": "ok" if ok else "error"})
 
 @app.route("/send-test-email")
 def send_test_email_route():
@@ -431,10 +694,9 @@ def send_test_email_route():
     try:
         send_test_email(email)
         log(email, "Test email sent")
-        return jsonify({"status": "ok"})
     except Exception as e:
         log(email, f"Test email failed: {e}")
-        return jsonify({"error": str(e)}), 500
+    return render_template("_dashboard.html", **_get_dashboard_context(email))
 
 
 @app.route("/status")
@@ -502,27 +764,21 @@ def test_notification():
     try:
         if channel == "slack":
             url = prefs.get("slack_webhook_url", "")
-            if not url:
-                return jsonify({"error": "No Slack webhook URL saved"}), 400
-            _send_slack_webhook(url, msg)
+            if url:
+                _send_slack_webhook(url, msg)
         elif channel == "telegram":
             chat_id = prefs.get("telegram_chat_id", "")
-            if not chat_id:
-                return jsonify({"error": "Telegram not verified yet"}), 400
-            _send_telegram(TELEGRAM_BOT_TOKEN, chat_id, msg)
+            if chat_id:
+                _send_telegram(TELEGRAM_BOT_TOKEN, chat_id, msg)
         elif channel == "whatsapp":
             phone = prefs.get("whatsapp_phone", "")
             apikey = prefs.get("whatsapp_apikey", "")
-            if not phone or not apikey:
-                return jsonify({"error": "WhatsApp not fully configured"}), 400
-            _send_whatsapp_callmebot(phone, apikey, msg)
-        else:
-            return jsonify({"error": "No notification channel set"}), 400
+            if phone and apikey:
+                _send_whatsapp_callmebot(phone, apikey, msg)
         log(email, f"Test {channel} notification sent")
-        return jsonify({"status": "ok"})
     except Exception as e:
         log(email, f"Test notification failed: {e}")
-        return jsonify({"error": str(e)}), 500
+    return render_template("_dashboard.html", **_get_dashboard_context(email))
 
 
 @app.route("/save-whatsapp-apikey", methods=["POST"])
@@ -536,6 +792,97 @@ def save_whatsapp_apikey():
     set_user_pref(email, "whatsapp_apikey", apikey)
     log(email, "WhatsApp API key saved")
     return jsonify({"status": "ok"})
+
+
+@app.route("/save-pushover-key", methods=["POST"])
+def save_pushover_key():
+    email = get_user_email()
+    if not email:
+        return jsonify({"error": "Not authenticated"}), 401
+    key = request.form.get("pushover_user_key", "").strip()
+    if not key:
+        return jsonify({"error": "User Key required"}), 400
+    set_user_pref(email, "pushover_user_key", key)
+    log(email, "Pushover user key saved")
+    return jsonify({"status": "ok"})
+
+
+@app.route("/download-contacts")
+def download_contacts():
+    vcf = "BEGIN:VCARD\nVERSION:3.0\nFN:CallMeBot\nTEL;TYPE=CELL:+34644599043\nEND:VCARD\n"
+    from flask import make_response
+    resp = make_response(vcf)
+    resp.headers["Content-Type"] = "text/vcard"
+    resp.headers["Content-Disposition"] = 'attachment; filename="callmebot_contacts.vcf"'
+    return resp
+
+
+@app.route("/export-xlsx")
+def export_xlsx():
+    email = get_user_email()
+    if not email:
+        return jsonify({"error": "Not authenticated"}), 401
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        sid = _find_or_create_sheet(email)
+        sheets = get_sheets_service(email)
+        result = sheets.spreadsheets().values().get(
+            spreadsheetId=sid, range="A:M"
+        ).execute()
+        values = result.get("values", [])
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Job Applications"
+
+        header_fill = PatternFill(start_color="2A4073", end_color="2A4073", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_align = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(bottom=Side(style="thin", color="2A4073"))
+
+        for col_idx, header in enumerate(SHEET_HEADERS, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        light_fill = PatternFill(start_color="F0F4FF", end_color="F0F4FF", fill_type="solid")
+        for row_idx, row in enumerate(values[1:], 2):
+            for col_idx, val in enumerate(row, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=val)
+                if row_idx % 2 == 0:
+                    cell.fill = light_fill
+                if col_idx == 3:
+                    cell.alignment = Alignment(horizontal="center")
+
+        for col in ws.columns:
+            max_len = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                if cell.value:
+                    max_len = max(max_len, len(str(cell.value)))
+            ws.column_dimensions[col_letter].width = min(max_len + 3, 60)
+
+        ws.freeze_panes = "A2"
+
+        import io
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        from flask import send_file
+        return send_file(
+            buf,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=f"job_applications_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        )
+    except Exception as e:
+        logger.error(f"XLSX export failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/upload-credentials", methods=["POST"])

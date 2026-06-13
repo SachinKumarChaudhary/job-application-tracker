@@ -16,11 +16,19 @@ Extract the following fields from the email and return ONLY valid JSON (no markd
 
 {{
   "company_name": "string (the company name, capitalized properly)",
-  "job_role": "string (the job title/role)",
+  "job_role": "string (the job title/role; e.g. 'Software Engineer', 'Graduate Trainee', 'Fresher')",
   "date": "string (application date in YYYY-MM-DD format, or null if unknown)",
-  "email_type": "string (one of: offer_letter, interview_invitation, application_received, rejection, other)",
-  "summary": "string (one-line summary, ~10-15 words)"
+  "email_type": "string (one of: offer_letter, technical_interview, interview_invitation, phone_screen, assessment, application_received, rejection, other)",
+  "location": "string (office location, city, or 'Remote' if mentioned; e.g. 'Bengaluru', 'Hyderabad', 'Remote'; empty string if unknown)",
+  "salary": "string (salary or stipend mentioned; e.g. '₹50,000/mo', '₹12 LPA', '$120k/yr', '6 LPA + benefits'; empty if unknown)",
+  "summary": "string (2-3 sentence summary including key details like team, tech stack, deadlines, walk-in dates, off-campus drive details)",
+  "next_step": "string (one of: 'interview', 'offer', 'follow_up', 'waiting', 'rejected', 'none')"
 }}
+
+For Indian job emails: 'off-campus drive' → application_received, 'walk-in drive' → interview_invitation,
+'assessment/test' → assessment, 'hiring alert/opening' → application_received.
+Pipeline stages (low to high): received → assessment → phone_screen → interview → technical_interview → offer.
+For phone screening invitations use phone_screen. For technical/onsite/coding rounds use technical_interview.
 
 Email Subject: {subject}
 From: {sender}

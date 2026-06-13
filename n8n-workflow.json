@@ -1,98 +1,111 @@
 {
+  "updatedAt": "2026-06-12T05:28:24.237Z",
+  "createdAt": "2026-06-11T11:31:51.758Z",
+  "id": "ODcOAUvQHLpt7084",
   "name": "Job Application Auto-Tracker",
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
       "id": "gmail-trigger",
       "name": "Gmail Trigger",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1,
       "position": [
-        250,
-        300
+        256,
+        304
       ],
-      "parameters": {
-        "operation": "receive",
-        "format": "full",
-        "filters": {
-          "query": "subject:\"application received\" OR subject:\"thank you for applying\" OR subject:\"application confirmation\" OR subject:\"offer letter\" OR subject:\"we received your application\"",
-          "includeSpamAndTrash": false,
-          "unreadOnly": true
-        },
-        "options": {
-          "markAsRead": true,
-          "downloadAttachments": false
-        },
-        "pollTimes": {
-          "item": [
-            {
-              "mode": "everyMinute",
-              "value": 15
-            }
-          ]
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "T5pPdioGHh3mU8Wl",
+          "name": "Gmail account"
         }
-      },
-      "credentials": {}
+      }
     },
     {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (items.length > 0) {\n  return [items[0]];\n}\nreturn [];"
+      },
+      "id": "limit-1",
+      "name": "Limit to 1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        400,
+        304
+      ]
+    },
+    {
+      "parameters": {},
       "id": "mime-decode",
       "name": "Decode MIME Body",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        500,
-        300
-      ],
-      "parameters": {
-        "language": "javaScript",
-        "code": "const headers = {};\nfor (const h of $json.payload.headers) {\n  headers[h.name] = h.value;\n}\n\nfunction extractText(payload) {\n  const parts = payload.parts || [payload];\n  for (const part of parts) {\n    if (part.mimeType === \"text/plain\" && part.body?.data) {\n      return Buffer.from(part.body.data, \"base64url\").toString(\"utf-8\");\n    }\n    if (part.parts) {\n      const result = extractText(part);\n      if (result) return result;\n    }\n  }\n  if (payload.body?.data) {\n    return Buffer.from(payload.body.data, \"base64url\").toString(\"utf-8\");\n  }\n  return \"\";\n}\n\nconst body = extractText($json.payload);\nconst ts = $json.internalDate\n  ? new Date(parseInt($json.internalDate)).toISOString().split(\"T\")[0]\n  : new Date().toISOString().split(\"T\")[0];\n\nreturn [{\n  json: {\n    subject: headers[\"Subject\"] || \"\",\n    sender: headers[\"From\"] || \"\",\n    messageId: headers[\"Message-ID\"] || \"\",\n    date: ts,\n    body: body\n  }\n}];"
-      },
-      "credentials": {}
+        612,
+        304
+      ]
     },
     {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendBody": true,
+        "options": {
+          "timeout": 15000
+        },
+        "jsonBody": {
+          "system_instruction": {
+            "parts": [
+              {
+                "text": "Extract job application details from this email. Return ONLY valid JSON with fields: company_name, job_role, date (application or interview date found), email_type (one of: application_confirmation, interview_invitation, rejection, offer_letter, assessment, follow_up, networking, other), summary (1-2 sentence summary)."
+              }
+            ]
+          },
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "={{ $json.raw_text }}"
+                }
+              ]
+            }
+          ]
+        },
+        "bodyContentType": "json"
+      },
       "id": "gemini-request",
       "name": "Gemini API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        750,
-        300
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_API_KEY",
-        "sendBody": true,
-        "bodyContentType": "json",
-        "jsonBody": "{\n  \"contents\": [{\"parts\": [{\"text\": \"You are an email parser for a job application tracker. Extract fields and return ONLY valid JSON. No markdown, no backticks, no explanation.\\n\\nEmail Subject: {{ $json.subject }}\\nFrom: {{ $json.sender }}\\nDate: {{ $json.date }}\\nBody:\\n{{ $json.body }}\\n\\nReturn STRICT JSON:\\n{\\n  \\\"company_name\\\": \\\"company name, capitalized\\\",\\n  \\\"job_role\\\": \\\"job title\\\",\\n  \\\"date\\\": \\\"YYYY-MM-DD or null\\\",\\n  \\\"email_type\\\": \\\"offer_letter | interview_invitation | application_received | rejection | other\\\",\\n  \\\"summary\\\": \\\"one-line, 10-15 words\\\"\\n}\"}],\n    \"systemInstruction\": {\"parts\": [{\"text\": \"You extract job application data from emails and return strict JSON.\"}]}\n  }],\n  \"generationConfig\": {\n    \"response_mime_type\": \"application/json\",\n    \"temperature\": 0.1\n  }\n}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "credentials": {}
+        852,
+        304
+      ]
     },
     {
+      "parameters": {},
       "id": "parse-validate",
       "name": "Parse & Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        1000,
-        300
-      ],
-      "parameters": {
-        "language": "javaScript",
-        "code": "const candidates = $json.candidates || [];\nconst raw = candidates[0]?.content?.parts?.[0]?.text\n  || $json.text\n  || $json.response\n  || \"{}\";\n\nlet cleaned = raw.replace(/```json?\\n?/g, \"\").replace(/\\n?```/g, \"\").trim();\nconst match = cleaned.match(/\\{[\\s\\S]*\\}/);\nlet parsed = {};\nif (match) {\n  try {\n    parsed = JSON.parse(match[0]);\n  } catch (e) {\n    parsed = {};\n  }\n}\n\nconst validTypes = [\"offer_letter\", \"interview_invitation\", \"application_received\", \"rejection\", \"other\"];\n\nreturn [{\n  json: {\n    company_name: (parsed.company_name || \"\").trim() || \"Unknown\",\n    job_role: (parsed.job_role || \"\").trim() || \"Unknown\",\n    application_date: parsed.date || $json.date || null,\n    email_subject: $json.subject || \"\",\n    sender_email: $json.sender || \"\",\n    message_id: $json.messageId || \"\",\n    email_type: validTypes.includes(parsed.email_type) ? parsed.email_type : \"other\",\n    summary: (parsed.summary || \"\").trim() || \"\"\n  }\n}];"
-      },
-      "credentials": {}
+        1108,
+        304
+      ]
     },
     {
-      "id": "if-valid",
-      "name": "Is Valid?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        1250,
-        300
-      ],
       "parameters": {
         "conditions": {
           "string": [
@@ -104,76 +117,87 @@
           ]
         }
       },
-      "credentials": {}
+      "id": "if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1364,
+        304
+      ]
     },
     {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "10FEJClOxZiAqel6GBzjV_30rUr0c3QHmnImVqCNwI_k",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
       "id": "sheets-append",
       "name": "Append to Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        1500,
-        200
+        1604,
+        208
       ],
-      "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "",
-          "mode": "list"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Company Name": "={{ $json.company_name }}",
-            "Job Role": "={{ $json.job_role }}",
-            "Application Date": "={{ $json.application_date }}",
-            "Email Subject": "={{ $json.email_subject }}",
-            "Sender Email": "={{ $json.sender_email }}",
-            "Message ID": "={{ $json.message_id }}",
-            "Alert Sent": "Yes",
-            "Email Type": "={{ $json.email_type }}",
-            "Summary": "={{ $json.summary }}"
-          }
-        },
-        "options": {}
-      },
-      "credentials": {}
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "eDTc6qej6rlNy7wY",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
+      "parameters": {
+        "text": "{{ $json.email_type == \"offer_letter\" ? \"\ud83c\udf89\" : $json.email_type == \"interview_invitation\" ? \"\ud83c\udfaf\" : $json.email_type == \"rejection\" ? \"\u274c\" : \"\ud83d\udccb\" }} *{{ $json.email_type }}*\n\nCompany: {{ $json.company_name }}\nRole: {{ $json.job_role }}\nDate: {{ $json.application_date }}{{ $json.summary ? \"\\n\\n\" + $json.summary : \"\" }}\n\nLogged to Google Sheets.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "chatId": "5460127583"
+      },
       "id": "telegram-send",
       "name": "Send Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        1750,
-        200
+        1860,
+        208
       ],
-      "parameters": {
-        "operation": "sendMessage",
-        "chatId": "",
-        "text": "{{ $json.email_type == \"offer_letter\" ? \"\ud83c\udf89\" : $json.email_type == \"interview_invitation\" ? \"\ud83c\udfaf\" : $json.email_type == \"rejection\" ? \"\u274c\" : \"\ud83d\udccb\" }} *{{ $json.email_type }}*\n\nCompany: {{ $json.company_name }}\nRole: {{ $json.job_role }}\nDate: {{ $json.application_date }}{{ $json.summary ? \"\\n\\n\" + $json.summary : \"\" }}\n\nLogged to Google Sheets.",
-        "additionalFields": {
-          "parse_mode": "Markdown"
+      "webhookId": "9e9923b0-3184-49e3-a04a-e61221471f98",
+      "credentials": {
+        "telegramApi": {
+          "id": "MlR7yYgp3QliClZe",
+          "name": "Telegram Bot"
         }
-      },
-      "credentials": {}
+      }
     },
     {
+      "parameters": {},
       "id": "noop-end",
       "name": "End",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        2000,
-        300
-      ],
-      "parameters": {}
+        2100,
+        304
+      ]
     }
   ],
   "connections": {
@@ -181,7 +205,7 @@
       "main": [
         [
           {
-            "node": "Decode MIME Body",
+            "node": "Limit to 1",
             "type": "main",
             "index": 0
           }
@@ -260,6 +284,17 @@
           }
         ]
       ]
+    },
+    "Limit to 1": {
+      "main": [
+        [
+          {
+            "node": "Decode MIME Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -267,6 +302,323 @@
     "callerPolicy": "workflowsFromSameOwner",
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": []
+  "staticData": {
+    "node:Gmail Trigger": {
+      "lastTimeChecked": 1781242109
+    }
+  },
+  "meta": null,
+  "pinData": {},
+  "versionId": "de8c6f4f-7294-461f-9ed9-8ad53261f129",
+  "activeVersionId": "de8c6f4f-7294-461f-9ed9-8ad53261f129",
+  "versionCounter": 10,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-11T20:55:09.000Z",
+      "createdAt": "2026-06-11T20:55:09.000Z",
+      "role": "workflow:owner",
+      "workflowId": "ODcOAUvQHLpt7084",
+      "projectId": "proj_6749b6aa8614",
+      "project": {
+        "updatedAt": "2026-06-11T20:55:09.000Z",
+        "createdAt": "2026-06-11T20:55:09.000Z",
+        "id": "proj_6749b6aa8614",
+        "name": "Sachin's Project",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": null
+      }
+    }
+  ],
+  "tags": [],
+  "parentFolder": null,
+  "activeVersion": {
+    "updatedAt": "2026-06-12T05:28:24.256Z",
+    "createdAt": "2026-06-12T05:28:24.256Z",
+    "versionId": "de8c6f4f-7294-461f-9ed9-8ad53261f129",
+    "workflowId": "ODcOAUvQHLpt7084",
+    "nodes": [
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "filters": {}
+        },
+        "id": "gmail-trigger",
+        "name": "Gmail Trigger",
+        "type": "n8n-nodes-base.gmailTrigger",
+        "typeVersion": 1,
+        "position": [
+          256,
+          304
+        ],
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "T5pPdioGHh3mU8Wl",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "mime-decode",
+        "name": "Decode MIME Body",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          512,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {}
+            ]
+          },
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "id": "gemini-request",
+        "name": "Gemini API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          752,
+          304
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "parse-validate",
+        "name": "Parse & Validate",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          1008,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{ $json.company_name }}",
+                "operation": "notEqual",
+                "value2": "Unknown"
+              }
+            ]
+          }
+        },
+        "id": "if-valid",
+        "name": "Is Valid?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          1264,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "10FEJClOxZiAqel6GBzjV_30rUr0c3QHmnImVqCNwI_k",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Sheet1",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "sheets-append",
+        "name": "Append to Sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          1504,
+          208
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "eDTc6qej6rlNy7wY",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "text": "{{ $json.email_type == \"offer_letter\" ? \"\ud83c\udf89\" : $json.email_type == \"interview_invitation\" ? \"\ud83c\udfaf\" : $json.email_type == \"rejection\" ? \"\u274c\" : \"\ud83d\udccb\" }} *{{ $json.email_type }}*\n\nCompany: {{ $json.company_name }}\nRole: {{ $json.job_role }}\nDate: {{ $json.application_date }}{{ $json.summary ? \"\\n\\n\" + $json.summary : \"\" }}\n\nLogged to Google Sheets.",
+          "additionalFields": {
+            "parse_mode": "Markdown"
+          },
+          "chatId": "5460127583"
+        },
+        "id": "telegram-send",
+        "name": "Send Telegram",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1,
+        "position": [
+          1760,
+          208
+        ],
+        "webhookId": "9e9923b0-3184-49e3-a04a-e61221471f98",
+        "credentials": {
+          "telegramApi": {
+            "id": "MlR7yYgp3QliClZe",
+            "name": "Telegram Bot"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "noop-end",
+        "name": "End",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          2000,
+          304
+        ]
+      }
+    ],
+    "connections": {
+      "Gmail Trigger": {
+        "main": [
+          [
+            {
+              "node": "Decode MIME Body",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Decode MIME Body": {
+        "main": [
+          [
+            {
+              "node": "Gemini API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Gemini API": {
+        "main": [
+          [
+            {
+              "node": "Parse & Validate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse & Validate": {
+        "main": [
+          [
+            {
+              "node": "Is Valid?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Valid?": {
+        "main": [
+          [
+            {
+              "node": "Append to Sheet",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "End",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Append to Sheet": {
+        "main": [
+          [
+            {
+              "node": "Send Telegram",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Telegram": {
+        "main": [
+          [
+            {
+              "node": "End",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Sachin Chaudhary",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-12T05:28:31.796Z",
+        "id": 1,
+        "workflowId": "ODcOAUvQHLpt7084",
+        "versionId": "de8c6f4f-7294-461f-9ed9-8ad53261f129",
+        "event": "activated",
+        "userId": "usr_59347c8c0382463e"
+      }
+    ]
+  },
+  "scopes": [
+    "workflow:create",
+    "workflow:delete",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:update"
+  ],
+  "checksum": "82dbc2a91529439aa75c5e812482aca7803995dea2ebcd44526e5203345d8a59"
 }

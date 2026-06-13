@@ -26,7 +26,7 @@ def test_to_sheet_row():
         message_id="<id@mail>",
     )
     row = app.to_sheet_row()
-    assert len(row) == 9
+    assert len(row) == 13
     assert row[0] == "Google"
     assert row[2] == "2025-06-08"
     assert row[6] == "Yes"

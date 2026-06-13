@@ -29,14 +29,14 @@
 A multi-user web app that:
 
 1. **Polls Gmail** every 15 minutes for job application emails
-2. **Parses them** using Gemini AI (primary) or regex (fallback) — extracts company name, job role, date, email type, and summary
-3. **Logs to Google Sheets** — one spreadsheet per user, auto-created with typed columns
-4. **Sends alerts** to Telegram, Slack, or WhatsApp
+2. **Parses them** using Gemini/Groq/NVIDIA AI (primary) or regex (fallback) — extracts company name, job role, date, email type (8 stages), location, salary, next step, and summary
+3. **Logs to Google Sheets** — one spreadsheet per user, auto-created with 13 typed columns, in-place updates when status progresses
+4. **Sends alerts** to Telegram, Slack, Discord, WhatsApp (3 providers), or Pushover
 5. **Runs 24/7** on PythonAnywhere free tier, kept alive by cron-job.org
 
 **Target users:** Anyone applying to 50+ jobs who wants automatic tracking without manual data entry.
 
-**Key differentiator:** $0 infrastructure cost — free-tier everything (PythonAnywhere, Gemini API, Google Sheets, Telegram Bot API, cron-job.org).
+**Key differentiator:** $0 infrastructure cost — free-tier everything (PythonAnywhere, Gemini/Groq/NVIDIA API, Google Sheets, Telegram Bot API, cron-job.org).
 
 ---
 
@@ -51,19 +51,19 @@ A multi-user web app that:
                                ▼
 ┌─────────────┐     ┌──────────────────┐     ┌───────────────────┐
 │   Browser   │────▶│   Flask App      │────▶│   Gmail API       │
-│  (user UI)  │     │   webui.py       │     │   (3 OAuth users) │
+│  (user UI)  │     │   webui.py       │     │   (per-user OAuth)│
 └─────────────┘     └────────┬─────────┘     └─────────┬─────────┘
                              │                         │
                              ▼                         ▼
                     ┌──────────────────┐     ┌───────────────────┐
-                    │   Gemini AI      │     │   Regex Parser    │
-                    │  (primary parse) │────▶│  (fallback parse) │
+                    │   AI Provider    │     │   Regex Parser    │
+                    │ (Gemini/Groq/NV) │────▶│  (fallback parse) │
                     └────────┬─────────┘     └─────────┬─────────┘
                              │                         │
                              ▼                         ▼
                     ┌──────────────────┐     ┌───────────────────┐
                     │ Google Sheets    │     │   Notifier        │
-                    │ (per-user, auto) │     │ TG / Slack / WA   │
+                    │ (per-user, auto) │     │ 7 channels        │
                     └──────────────────┘     └───────────────────┘
 ```
 
@@ -73,22 +73,21 @@ A multi-user web app that:
 Gmail API ──[fetch 20 matching emails]──► Poller
     │
     ▼
+quick_is_job_email() ──[regex filter]──► skip if non-job (no AI wasted)
+    │
+    ▼
 Parser ──[try AI first]──► Gemini/Groq/NVIDIA ──[JSON]──► Parser
-    │                                  │
-    │              [if AI fails]       │
-    └─────[regex fallback]─────────────┘
+    │                                │
+    │         [if AI fails/skipped]  │
+    └─────[regex fallback]───────────┘
     │
     ▼
-Validator ──[is company_name valid?]──► skip if not
+In-place check ──[company+role in sheet?]──► UPDATE row if new status > old
+    │                                                (progress never regression)
+    └── if no match ──► APPEND new row A-M
     │
     ▼
-Dedup Check ──[Message-ID already in sheet?]──► skip if yes
-    │
-    ▼
-Sheets Writer ──[append row A-J]──► Google Sheets
-    │
-    ▼
-Notifier ──[send alert]──► Telegram / Slack / WhatsApp
+Notifier ──[send alert]──► Telegram / Slack / Discord / WhatsApp / Pushover
     │
     ▼
 Mark as Read ──[remove UNREAD label]──► Gmail
@@ -101,43 +100,44 @@ Mark as Read ──[remove UNREAD label]──► Gmail
 ### Entry Points
 
 | File | Lines | Role |
-|---|---|---|
-| `webui.py` | 563 | Flask app — routes, OAuth, scheduler, per-user polling |
+|------|-------|------|
+| `webui.py` | 910 | Flask app — routes, OAuth, scheduler, per-user polling, in-place updates, sheet formatting, email normalization |
 | `wsgi.py` | 11 | PythonAnywhere WSGI bridge |
 
 ### Source Modules (`src/`)
 
 | File | Lines | Role |
-|---|---|---|
-| `config.py` | 52 | Env var loading, logging setup, constants, validation |
-| `main.py` | 61 | `OfferTracker` class — orchestrates one poll cycle |
+|------|-------|------|
+| `config.py` | 59 | Env var loading, logging setup, constants, validation |
+| `main.py` | 61 | `OfferTracker` class — legacy single-user orchestrator |
 | `poller.py` | 85 | Gmail API fetch, header extraction, body decode, mark-as-read |
-| `parser.py` | 183 | Email parsing — company/role extraction, type classification, date parsing |
-| `ai.py` | 126 | AI provider abstraction — Gemini, Groq, NVIDIA API calls |
-| `models.py` | 67 | Pydantic `JobApplication` model — validation, sheet rows, alert text |
-| `notifier.py` | 89 | Multi-channel notification dispatch |
+| `parser.py` | 283 | Email parsing — company/role extraction, 8-stage type classifier, 60+ company aliases, two-pass AI filter, date parsing |
+| `ai.py` | 134 | AI provider abstraction — Gemini, Groq, NVIDIA API calls with JSON response parsing |
+| `models.py` | 88 | Pydantic `JobApplication` model — validation, 13-column sheet rows, alert text with emoji |
+| `notifier.py` | 185 | 7-channel notification dispatch (Telegram, Slack, Discord, WhatsApp x3, Pushover) |
 | `sheets_writer.py` | 47 | Google Sheets CRUD — auto-create, append, dedup |
 | `duplicate_checker.py` | 27 | Message-ID dedup cache |
-| `scheduler.py` | 43 | Standalone scheduler daemon (CLI mode) |
+| `scheduler.py` | 43 | Standalone CLI daemon (legacy — webui has its own scheduler) |
 | `setup_oauth.py` | — | One-time OAuth setup script |
 
 ### Web Layer
 
 | File | Lines | Role |
-|---|---|---|
-| `templates/index.html` | 602 | Single-page HTML/JS app — dashboard, prefs, logs |
+|------|-------|------|
+| `templates/index.html` | 718 | Material Design 3 — dark/light theme, 4 tab nav, responsive mobile-first, HTMX |
+| `templates/_dashboard.html` | 326 | Dashboard partial — action buttons, stat cards, entries table with pipeline progress bars, per-channel alert cards |
 
 ### Tests
 
 | File | Tests | What It Covers |
-|---|---|---|
-| `test_parser.py` | 9 | Company extraction, date parsing, full email parsing, fallback, message IDs |
+|------|-------|----------------|
+| `test_parser.py` | 9 | Company extraction, date parsing, full email parsing, domain fallback, message IDs, body date |
 | `test_models.py` | 3 | Model validation, sheet row format, alert text format |
 
 ### Config & Build
 
 | File | Role |
-|---|---|
+|------|------|
 | `.env.example` | All config vars with documentation |
 | `requirements.txt` | 9 dependencies |
 | `setup.sh` | One-command environment setup |
@@ -148,11 +148,23 @@ Mark as Read ──[remove UNREAD label]──► Gmail
 
 ### Documentation
 
-| File | Lines | Purpose |
-|---|---|---|
-| `READme.md` | 158 | Quickstart, badges, architecture, config, deployment |
-| `CASE_STUDY.md` | 850+ | Narrative case study for hiring managers |
-| `PROJECT_REFERENCE.md` | — | This file — complete technical reference |
+| File | Size | Purpose |
+|------|------|---------|
+| `README.md` | ~9K | Quickstart, custom SVGs, architecture, config, deployment |
+| `PROJECT_COMPLETE.md` | 40K+ | Single-file A-Z reference — history, architecture, every file, endpoints, parser, OAuth, config, deployment, testing, known issues, appendices |
+| `PROJECT_REFERENCE.md` | — | This file — concise technical reference |
+| `docs/n8n-workflow.md` | 5.5K | n8n workflow breakdown, code, why rejected |
+| `docs/DEVICE_ARCHITECTURE.md` | 3K | Device hardware, OS, env spec |
+| `GITHUB.md` | 1K | Public Git info for contributors |
+
+### Visual Assets
+
+| File | Size | Purpose |
+|------|------|---------|
+| `assets/hero-banner.svg` | 3K | Dark gradient banner — title, tagline, stat badges |
+| `assets/badges.svg` | 4K | Custom dark-themed SVG badges (license, python, tests, hosting, AI, cost) |
+| `assets/architecture.svg` | 8K | Full system architecture — 7-color scheme, pill labels, shadows |
+| `assets/how-it-works.svg` | 4K | Visual flow: User → OAuth → Gmail → Parser → Sheets + Alerts |
 
 ---
 
@@ -165,11 +177,14 @@ The Flask app runs two parallel systems:
 **System 1: User-facing web UI**
 - `/` — Dashboard with live stats, recent entries, activity log
 - `/auth` `/callback` — Google OAuth flow
-- `/save-prefs` — Notification channel selection
+- `/save-prefs` — Notification channel selection (7 channels)
 - `/trigger` — Manual poll trigger
 - `/send-test-email` — Sends a self-addressed test application email
 - `/test-notification` — Tests the configured notification channel
 - `/upload-credentials` — Admin uploads Google Cloud OAuth JSON
+- `/export-xlsx` — Downloads sheet as formatted Excel file
+- `/format-sheet` — Beautifies Google Sheet
+- `/dedup-sheet` — Removes duplicate rows by Message-ID
 
 **System 2: Background scheduler**
 - `scheduler_loop()` runs in a daemon thread, polls every `POLL_INTERVAL_MINUTES`
@@ -183,27 +198,49 @@ def run_poll(email):
     1. Get valid OAuth credentials (refresh if expired)
     2. Find or create Google Sheet for this user
     3. Build Gmail service + Sheets service
-    4. Search Gmail: q='subject:"application received" OR subject:"offer letter"...'
-    5. For each matching message:
+    4. Search Gmail: q='(subject:"application received" OR ...) is:unread'
+    5. Read existing sheet rows → build company+role→row_number map
+    6. For each matching message:
        a. Get full message (format="full")
-       b. Extract Message-ID, check against known_ids (column F of sheet)
-       c. Skip if duplicate
-       d. Call parse_email(full) from parser.py
-       e. If parse succeeds: append to sheet, notify user, mark as read
-       f. If parse fails: mark as read (skip)
-    6. Update last_run/last_count/last_error
+       b. Extract Message-ID, check against known_ids (column F)
+       c. Call parse_email(full) from parser.py (two-pass: quick filter → AI → regex)
+       d. Check company+role match in existing rows
+          - If match: UPDATE row if new status priority > old (never regress)
+          - If no match: APPEND new row
+       e. Notify user via configured channel
+       f. Mark as read (remove UNREAD label)
+    7. Update last_run/last_count/last_error
+```
+
+### In-Place Update Logic
+
+```python
+STATUS_PRIORITY = {
+    "rejection": 1, "other": 2, "application_received": 3,
+    "assessment": 4, "phone_screen": 5, "interview_invitation": 6,
+    "technical_interview": 7, "offer_letter": 8,
+}
+
+# When a new email matches existing company+role:
+if new_priority > old_priority:
+    UPDATE row  # progress — never regress
+else:
+    SKIP        # no regression allowed
 ```
 
 ### Per-User Token Isolation
 
-Each user's OAuth token is stored as:
 ```
 credentials/token_<base64url(email)>.json
 ```
 
 Example: `credentials/token_c2FjaGluQGV4YW1wbGUuY29t.json`
 
-This allows multiple users to have independent Gmail + Sheets sessions.
+Token auto-refresh and scope mismatch detection are handled in `get_creds()`.
+
+### Email Normalization
+
+Gmail ignores dots and case in usernames. `normalize_email()` lowercases and strips dots before `@gmail.com` to prevent duplicate user entries and token file mismatches. Applied in `get_user_email()`, `get_user_prefs()`, `set_user_pref()`, and `get_creds()`.
 
 ---
 
@@ -214,7 +251,7 @@ All config is loaded from `.env` by `src/config.py`.
 ### Core
 
 | Variable | Default | Description |
-|---|---|---|
+|----------|---------|-------------|
 | `GMAIL_QUERY` | `subject:"application received" OR ...` | Gmail search query |
 | `POLL_INTERVAL_MINUTES` | `15` | Poll cycle interval |
 | `SHEET_NAME` | `Job Application Tracker` | Google Sheet name |
@@ -223,16 +260,20 @@ All config is loaded from `.env` by `src/config.py`.
 ### Notifications
 
 | Variable | Required | Description |
-|---|---|---|
-| `TELEGRAM_BOT_TOKEN` | Yes | Bot token from @BotFather |
-| `TELEGRAM_BOT_USERNAME` | Yes | Bot username (users DM this to connect) |
-| `SLACK_BOT_TOKEN` | No | Legacy (not currently used for broadcast) |
-| `WHATSAPP_APIKEY` | No | Admin WhatsApp API key (users can set own) |
+|----------|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | ✅ | Bot token from @BotFather |
+| `TELEGRAM_BOT_USERNAME` | ✅ | Bot username (users DM this to connect) |
+| `PUSHOVER_TOKEN` | ❌ | Pushover app token for admin fallback |
+| `PUSHOVER_USER` | ❌ | Pushover user key for admin fallback |
+| `WHATSAPP_CLOUD_PHONE_NUMBER_ID` | ❌ | WhatsApp Cloud API phone number ID |
+| `WHATSAPP_CLOUD_ACCESS_TOKEN` | ❌ | WhatsApp Cloud API access token |
+| `TWILIO_ACCOUNT_SID` | ❌ | Twilio account SID for WhatsApp |
+| `TWILIO_AUTH_TOKEN` | ❌ | Twilio auth token for WhatsApp |
 
 ### AI / LLM
 
 | Variable | Default | Options |
-|---|---|---|
+|----------|---------|---------|
 | `AI_PROVIDER` | `none` | `gemini`, `groq`, `nvidia`, `none` |
 | `AI_MODEL` | `gemini-2.0-flash` | Model name for provider |
 | `GEMINI_API_KEY` | — | Required if `AI_PROVIDER=gemini` |
@@ -242,8 +283,8 @@ All config is loaded from `.env` by `src/config.py`.
 ### Security
 
 | Variable | Required | Description |
-|---|---|---|
-| `CRON_SECRET` | Yes | Secret path segment in `/cron/<secret>` |
+|----------|----------|-------------|
+| `CRON_SECRET` | ✅ | Secret path segment in `/cron/<secret>` |
 | `FLASK_ENV` | No | Set to `production` on PythonAnywhere |
 
 ---
@@ -253,7 +294,7 @@ All config is loaded from `.env` by `src/config.py`.
 ### Authentication
 
 | Method | Path | Description |
-|---|---|---|
+|--------|------|-------------|
 | GET | `/` | Dashboard (authed) or landing page |
 | GET | `/auth` | Initiate Google OAuth flow |
 | GET | `/callback` | OAuth callback — creates token, redirects to `/` |
@@ -263,23 +304,28 @@ All config is loaded from `.env` by `src/config.py`.
 ### Preferences
 
 | Method | Path | Description |
-|---|---|---|
+|--------|------|-------------|
 | POST | `/save-prefs` | Save notification channel + channel-specific config |
 | GET | `/change-channel` | Reset channel to "none" |
 
 ### Actions
 
 | Method | Path | Description |
-|---|---|---|
+|--------|------|-------------|
 | GET | `/trigger` | Run poll for authenticated user |
 | GET | `/send-test-email` | Send self-addressed test application email |
 | POST | `/test-notification` | Send test notification on configured channel |
 | POST | `/save-whatsapp-apikey` | Save WhatsApp API key after activation |
+| POST | `/save-pushover-key` | Save Pushover user key |
+| GET | `/format-sheet` | Beautify Google Sheet (header style, banding, borders, auto-resize) |
+| GET | `/dedup-sheet` | Remove duplicate rows by Message-ID |
+| GET | `/export-xlsx` | Download sheet as formatted Excel file |
+| GET | `/download-contacts` | Download CallMeBot contact VCF |
 
 ### Status
 
 | Method | Path | Description |
-|---|---|---|
+|--------|------|-------------|
 | GET | `/status` | JSON: authed state, prefs, last run, last error |
 | GET | `/logs` | JSON: last 50 log lines |
 | GET | `/automation-status` | JSON: scheduler alive, poll interval |
@@ -290,9 +336,24 @@ All config is loaded from `.env` by `src/config.py`.
 
 ## 7. Parser Deep Dive
 
-### AI Path (`src/ai.py`)
+### Two-Pass AI Pipeline (`src/parser.py` + `src/ai.py`)
 
-When `AI_PROVIDER` is set (gemini/groq/nvidia), the AI receives this prompt:
+Before calling the AI, `quick_is_job_email()` runs a fast regex filter:
+
+```python
+keywords = (
+    r"offer\s*letter|interview|application|hiring|recruit"
+    r"|job\s*alert|opportunity|position|role\s+at"
+    r"|assessment|coding\s*test|hackerrank|walk[- ]?in|off[- ]?campus"
+    r"|graduate\s+trainee|fresher|engineer\s+trainee"
+)
+```
+
+Non-job emails skip the API call entirely — saves credits and speeds up processing.
+
+### AI Path
+
+When `AI_PROVIDER` is set, the AI receives this prompt:
 
 ```
 You are an email parser for a job application tracker.
@@ -302,8 +363,11 @@ Extract the following fields from the email and return ONLY valid JSON:
   "company_name": "...",
   "job_role": "...",
   "date": "YYYY-MM-DD or null",
-  "email_type": "offer_letter|interview_invitation|application_received|rejection|other",
-  "summary": "one-line, 10-15 words"
+  "email_type": "offer_letter|technical_interview|interview_invitation|phone_screen|assessment|application_received|rejection|other",
+  "location": "city, state or 'Remote'",
+  "salary": "e.g. '₹50,000/mo', '$120k/yr'",
+  "summary": "2-3 sentence summary with key details",
+  "next_step": "interview|offer|follow_up|waiting|rejected|none"
 }
 ```
 
@@ -312,43 +376,57 @@ The response is parsed with `_clean_json()` which strips markdown code fences an
 **Supported AI providers:**
 
 | Provider | API Endpoint | Free Tier |
-|---|---|---|
+|----------|-------------|-----------|
 | Gemini | `generativelanguage.googleapis.com` | 60 req/min free |
 | Groq | `api.groq.com/openai/v1` | 30 req/min free (rate-limited) |
 | NVIDIA | `integrate.api.nvidia.com/v1` | Free tier available |
 
-### Regex Fallback Path (`src/parser.py`)
+### Regex Fallback Path
 
-**Company name extraction** — three-layer strategy:
+**Company name extraction — four-layer strategy:**
 
-1. **Domain extraction** (always): `re.search(r"@([\w-]+)\.", sender)` → `.title()`
-2. **Known company patterns** (subject + body): 40+ big-tech companies in regex alternation
+1. **Domain extraction** (always): `re.search(r"@([\w-]+)\.", sender)` → check `COMPANY_ALIASES` (60+ mappings) → `.title()`
+2. **Known company patterns** (subject + body): 60+ Indian + global companies in regex alternation
 3. **Generic "at/for/with" patterns**: `r"(?:at|for|with)\s+(.+?)(?:\s+(?:is|we|the|position|role)|$)"`
 4. **Last resort**: falls back to domain-based name
 
-**Role extraction** — multi-pattern matching:
+**Company aliases (60+ mappings):**
 
-1. Keyword combo: `Frontend|Backend|Full-Stack|DevOps` + `Engineer|Developer|Intern`
-2. Known prefixes: `Software|Data|ML|QA|iOS|Android` + `Engineer|Scientist|Architect`
-3. Known roles: `Product|UX|UI|Graphic` + `Manager|Designer|Analyst`
+```python
+COMPANY_ALIASES = {
+    "tcs": "TCS", "infosys": "Infosys", "google": "Google",
+    "microsoft": "Microsoft", "goldmansachs": "Goldman Sachs",
+    "byjus": "BYJU'S", "flipkart": "Flipkart",
+    # ... 60+ total
+}
+```
+
+**Role extraction — multi-pattern matching:**
+
+1. Indian roles: `Graduate Trainee`, `GET`, `Fresher`, `Associate Software`, `Junior Developer`
+2. Keyword combo: `Frontend|Backend|Full-Stack|DevOps` + `Engineer|Developer|Intern`
+3. Known prefixes: `Software|Data|ML|QA|iOS|Android` + `Engineer|Scientist|Architect`
 4. Extra patterns: `Offer Letter | <role>`, `Application received: <role>`
 5. Fallback: `position|role|job title: <role>`, `for the|as a <role>`
 6. Last resort: `"Unknown Position"`
 
-**Email type classification** — keyword detection:
+**Email type classification — 8 pipeline stages:**
 
-| Type | Keywords |
-|---|---|
-| `rejection` | `regret to inform`, `unfortunately`, `not moving forward`, `rejected` |
-| `offer_letter` | `offer letter`, `offer of`, `internship offer`, `letter of offer` |
-| `interview_invitation` | `interview`, `invitation to`, `schedule an interview` |
-| `application_received` | `application received`, `thank you for applying`, `we received` |
-| `other` | Everything else |
+| Type | Priority | Keywords |
+|------|----------|----------|
+| `rejection` | 1 | `regret to inform`, `unfortunately`, `not moving forward`, `rejected` |
+| `other` | 2 | Everything else |
+| `application_received` | 3 | `application received`, `thank you for applying`, `we received` |
+| `assessment` | 4 | `coding test`, `assessment`, `hackerrank`, `hackerearth` |
+| `phone_screen` | 5 | `phone screen`, `video screen`, `introductory call`, `quick chat` |
+| `interview_invitation` | 6 | `interview`, `invitation to`, `schedule an interview`, `shortlisted` |
+| `technical_interview` | 7 | `technical interview`, `coding round`, `system design`, `pair programming` |
+| `offer_letter` | 8 | `offer letter`, `offer of`, `internship offer`, `you are hired` |
 
-**Date parsing** — tries three formats:
+**Date parsing — tries three formats:**
 
 | Format | Pattern | Example |
-|---|---|---|
+|--------|---------|---------|
 | ISO | `YYYY-MM-DD` | `2025-06-08` |
 | US | `MM/DD/YYYY` | `06/08/2025` |
 | Long | `Month DD, YYYY` | `June 8, 2025` |
@@ -360,18 +438,20 @@ If AI provides a date, it's used first. If regex finds one, it's used second. Ot
 ```
 parse_email(msg)
     ├── extract subject, sender, body, message_id, internal_date
-    ├── try parse_email_with_ai()
+    ├── quick_is_job_email()  ← Two-pass filter before AI
+    │   └── if false: skip AI call, fall through to regex
+    ├── if job-related: try parse_email_with_ai()
     │   └── if AI returns valid dict:
     │       ├── company = AI result or regex fallback
     │       ├── role = AI result or regex fallback
     │       ├── email_type = AI result
-    │       ├── summary = AI result
+    │       ├── location/salary/summary/next_step = AI result
     │       ├── date = AI date or regex date or internal_date
-    │       └── parser = "AI"
-    └── else (AI not configured or failed):
-        ├── company = extract_company()
+    │       └── parser = provider name ("Gemini"/"Groq"/"NVIDIA")
+    └── else (AI not configured or failed or non-job email):
+        ├── company = extract_company()  ← uses COMPANY_ALIASES
         ├── role = extract_role()
-        ├── email_type = classify_email_type()
+        ├── email_type = classify_email_type()  ← 8 stages
         ├── summary = ""
         ├── date = regex date or internal_date
         └── parser = "Regex"
@@ -395,6 +475,20 @@ parse_email(msg)
 - Chat ID resolved via `getUpdates` API
 - Messages sent as Markdown via `sendMessage`
 
+### Discord (webhook-based, no setup friction)
+
+**User setup:**
+1. Select Discord in preferences
+2. Open Discord → Server Settings → Integrations → Create Webhook
+3. Name it "Offer Tracker", pick a channel, copy webhook URL
+4. Paste URL in preferences → Save
+
+**Technical:**
+- Uses Discord webhook URL per user (no bot token needed)
+- URL format: `https://discord.com/api/webhooks/...`
+- Messages sent as JSON `{"content": "..."}` via POST
+- Dashboard shows webhook status, test/change buttons
+
 ### Slack
 
 **User setup:**
@@ -406,24 +500,23 @@ parse_email(msg)
 **Technical:**
 - Uses webhook URL per user (no bot token needed)
 - Messages sent as JSON `{"text": "..."}` via POST
-- No verification needed — webhooks work immediately
+- Known issue: "No channels" picker — needs workspace refresh
 
-### WhatsApp (CallMeBot — least reliable)
+### WhatsApp (CallMeBot — DEPRECATED)
 
-**User setup:**
-1. Select WhatsApp in preferences, enter phone number
-2. Tap activation link → opens WhatsApp → send "I allow CallMeBot" to gateway number
-3. CallMeBot replies with API key → paste in app
+Gateway numbers are unreliable and get banned. Original setup sent "I allow callmebot" to `+34 644 59 90 43` to receive an API key, then stored in prefs.
 
-**Technical:**
-- Uses `api.callmebot.com/whatsapp.php` with phone + apikey + text
-- Known issues: API key delivery is unreliable (gateway numbers sometimes don't respond)
-- Two gateway numbers: `+34 644 64 60 89` and `+34 623 78 64 49`
+### WhatsApp Cloud API
 
-### Pushover (app-level fallback)
+Admin sets `WHATSAPP_CLOUD_PHONE_NUMBER_ID` and `WHATSAPP_CLOUD_ACCESS_TOKEN` in `.env`. User enters their phone number in prefs. Messages sent via Meta's Graph API.
 
-- Configured in `.env` with `PUSHOVER_TOKEN` and `PUSHOVER_USER`
-- Used by `notify_all()` — not exposed to users in web UI
+### Twilio WhatsApp
+
+Admin sets `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` in `.env`. User enters their phone number. Messages sent via Twilio's API.
+
+### Pushover
+
+Admin sets `PUSHOVER_TOKEN` in `.env`. User enters their user key in prefs. Can also be used as app-level fallback.
 
 ---
 
@@ -454,6 +547,7 @@ SCOPES = [
 - Token file: `credentials/token_<base64(email)>.json`
 - Auto-refresh: `creds.refresh(Request())` if expired
 - Scope mismatch detection: if scope changes, token is deleted and user re-auths
+- Email normalization: Gmail dots/case normalized to prevent duplicate tokens
 
 ---
 
@@ -515,8 +609,8 @@ pytest -v
 ### Current Coverage
 
 | Test File | Tests | Lines | What It Covers |
-|---|---|---|---|
-| `test_parser.py` | 9 | 108 | Company extraction, date parsing, full email parsing, domain fallback, message IDs, body date parsing |
+|-----------|-------|-------|----------------|
+| `test_parser.py` | 9 | 108 | Company extraction, date parsing, full email parsing, domain fallback, message IDs, body date |
 | `test_models.py` | 3 | 51 | Model creation, sheet row format, alert text format with emoji |
 
 ### Test Patterns
@@ -539,74 +633,73 @@ def make_mock_msg(subject, sender, body, date_str=None):
             },
         },
     }
-
-# Test cases:
-# - Domain extraction: "no-reply@google.com" → "Google"
-# - Full parse: "Software Engineer at Google" → company="Google", role="Software Engineer"
-# - Thank you: "Thank you for applying to Stripe!" → company="Stripe"
-# - Subject extraction: "Data Scientist at Microsoft" → company="Microsoft"
-# - Domain fallback: "hr@some-startup.io" → company="Some-Startup"
-# - Body date: "Application Date: 2025-06-08" → date="2025-06-08"
 ```
 
 ---
 
 ## 12. Known Issues & Roadmap
 
+### Recently Fixed
+
+| Issue | Fix |
+|-------|-----|
+| Briefcase icon didn't render | Replaced `briefcase` ligature with `description` |
+| OAuth callback URL caching | `Cache-Control: no-store` on all responses |
+| Missing `is:unread` in Gmail query | Now uses `(query) is:unread` in `run_poll()` |
+| Hardcoded Gmail query | `webui.py:324` now uses `GMAIL_QUERY` env var |
+
 ### Bugs
 
-| Issue | File | Severity | Description |
-|---|---|---|---|
-| Missing `is:unread` in Gmail query | `webui.py:167` | Medium | Without `is:unread`, already-processed emails may be re-fetched. The dedup check mitigates this but adds API overhead |
-| Hardcoded Gmail query | `webui.py:167` | Low | Query string is hardcoded instead of using `GMAIL_QUERY` from config.py |
-| WhatsApp CallMeBot unreliable | `notifier.py:48` | Low | Gateway numbers often don't respond with API key |
-| Slack `channels:read` scope | — | Low | Bot token approach needs `channels:read` scope for channel discovery |
+| Issue | Location | Severity | Description |
+|-------|----------|----------|-------------|
+| WhatsApp CallMeBot unreliable | `notifier.py:65` | Low | Gateway numbers often don't respond with API key |
+| In-memory state | `webui.py:48-52` | Low | `last_run`, `last_count`, `log_buffer` lost on restart |
 
 ### Technical Debt
 
 | Issue | Location | Description |
-|---|---|---|
-| `last_run` / `last_count` / `last_error` are in-memory dicts | `webui.py:43-45` | Lost on app restart; no persistence |
-| `log_buffer` is in-memory | `webui.py:47` | Lost on restart; no log rotation |
-| Single-threaded scheduler | `webui.py:232` | If one user's poll hangs, subsequent users are delayed |
-| No rate limiting on `/cron/` | `webui.py:464` | Anyone with the secret can trigger polls |
-| Tokens stored on filesystem | `webui.py:82-84` | Not suitable for multi-instance deployment |
-| No token revocation detection | `webui.py:87-104` | If user revokes access, app retries silently until token expires |
+|-------|----------|-------------|
+| Single-threaded scheduler | `webui.py:424` | One slow user poll delays others |
+| Tokens on filesystem | `webui.py:121-123` | Not suitable for multi-instance deployment |
+| No rate limiting on `/cron/` | `webui.py:726-740` | Anyone with the secret can trigger polls |
+| No token revocation detection | `webui.py:126-149` | Silent retry until token expires |
 
 ### Roadmap
 
-| Feature | Priority | Description |
-|---|---|---|
-| Dashboard charts | Medium | Application trend line, response rate pie, company breakdown bar |
-| AI categorization | Low | Auto-tag applications by industry, role level, location |
-| CSV/Excel export | Low | One-click export of sheet data |
-| Multi-language support | Low | Parse emails in Hindi, Spanish, etc. (Gemini supports 100+ languages) |
-| Email reply detection | Low | Detect when a company replies to your application |
-| Webhook for custom integrations | Low | Generic webhook so users can pipe to Zapier/Make/n8n |
+| Feature | Priority | Status | Description |
+|---------|----------|--------|-------------|
+| Dashboard charts | Medium | ❌ | Application trends, response rates, company breakdown |
+| Multi-language | Low | ❌ | Parse Hindi, Spanish emails via AI |
+| Persistent state | Medium | ❌ | Move from in-memory dicts to SQLite |
+| Async worker queue | Low | ❌ | Celery or Redis queue instead of single-threaded scheduler |
 
 ---
 
 ## 13. Session History Summary
 
-This project was built across 9 AI coding sessions. Key milestones:
+This project was built across 13 AI coding sessions:
 
 | Session | Date | Key Events |
-|---|---|---|
-| 1 | Jun 8 | Initial Flask app + Gmail API + regex parser |
-| 2 | Jun 8-9 | Multi-user OAuth, per-user tokens, notification channels |
-| 3 | Jun 9 | Telegram integration, preference persistence, local testing |
-| 4 | Jun 9-10 | n8n approach — designed workflow, hit Android tracing-stop bug |
+|---------|------|------------|
+| 1 | Jun 8 | Initial Flask app — Gmail API, regex parser, Google Sheets, Telegram |
+| 2 | Jun 8-9 | Multi-user OAuth, per-user token isolation, prefs, notification UI |
+| 3 | Jun 9 | Telegram auto-verify, test notification, UI polish |
+| 4 | Jun 9-10 | n8n workflow design — 8 nodes, hit Android tracing-stop bug |
 | 5 | Jun 10 | n8n debugging — CONT daemon fix, partial success |
-| 6 | Jun 10-11 | Manus AI attempt — hit credit limits (300/day, needed 672) |
-| 7 | Jun 11 | Returned to Flask — merged best of all approaches, PythonAnywhere deploy |
-| 8 | Jun 11 | 11 tests passing, WhatsApp + Slack channels, session history extraction |
-| 9 | Jun 11 | Documentation — README, CASE_STUDY.pdf, GitHub push, documentation skill |
+| 6 | Jun 10-11 | Manus AI — hit 300 credit/day limit |
+| 7 | Jun 11 | Return to Flask — merged n8n AI code, PythonAnywhere deploy, WhatsApp/Slack |
+| 8 | Jun 11 | 11 tests passing, error handling polish |
+| 9 | Jun 11 | Documentation — README, CASE_STUDY.pdf, GitHub push |
+| 10 | Jun 11-12 | AI migration Gemini→NVIDIA, sheet formatting, 13-col schema, OAuth scope fix |
+| 11 | Jun 13 | Frontend polish — Material Symbols, theme toggle, "none" channel card, email normalization, Cache-Control |
+| 12 | Jun 12 | Visual SVGs — hero banner, badges, architecture diagram, how-it-works flow, designer skill |
+| 13 | Jun 12 | Discord, in-place sheet updates, two-pass AI, 60+ company aliases, 8-stage pipeline, WhatsApp deprecated |
 
-### Why Custom Flask (Approach #4) Won
+### Why Custom Flask Won
 
-- **n8n (Approach #2):** Android Termux proot kills Node.js threads (tracing-stop state). Even with CONT daemon, unreliable for 24/7.
-- **Manus AI (Approach #3):** 300 credits/day insufficient for 672 emails/day (every 15 min polling). No multi-user support. No persistent storage.
-- **Custom Flask + cron-job.org:** Full control, $0 infra, multi-user, 15-min polling interval, all notification channels.
+- **n8n:** Android Termux proot kills Node.js threads (tracing-stop state)
+- **Manus AI:** 300 credits/day insufficient for 672 polls/day
+- **Custom Flask + cron-job.org:** Full control, $0 infra, multi-user, all notification channels
 
 ---
 
@@ -623,7 +716,7 @@ subject:"we received your application"
 ## Appendix B: Google Sheet Columns
 
 | Column | Header | Source |
-|---|---|---|
+|--------|--------|--------|
 | A | Company Name | Parser (AI or regex) |
 | B | Job Role | Parser (AI or regex) |
 | C | Application Date | Parser or email internalDate |
@@ -631,9 +724,12 @@ subject:"we received your application"
 | E | Sender Email | Gmail header |
 | F | Message ID | Gmail header (dedup key) |
 | G | Alert Sent | Always "Yes" |
-| H | Email Type | Classifier (Offer/Interview/Received/Rejection/Other) |
-| I | Summary | AI only (empty for regex) |
-| J | Parser | "AI" or "Regex" |
+| H | Email Type | Classifier (8 stages) |
+| I | Summary | AI generated (2-3 sentence description) |
+| J | Location | AI extracted |
+| K | Salary | AI extracted |
+| L | Next Step | AI classified |
+| M | Parser | Provider name ("NVIDIA"/"Gemini"/"Groq"/"Regex") |
 
 ## Appendix C: Dependencies
 
@@ -646,18 +742,27 @@ gspread>=6.0
 pydantic>=2.0
 python-dotenv>=1.0
 requests>=2.28
+openpyxl>=3.0
 pytest
 ```
 
 ## Appendix D: Key Design Decisions
 
 | Decision | Rationale |
-|---|---|
-| **Flask over FastAPI** | Simpler WSGI deployment on PythonAnywhere; no async complexity needed |
+|----------|-----------|
+| **Flask over FastAPI** | Simpler WSGI deployment on PythonAnywhere; no async complexity |
 | **pydantic for models** | Built-in validation, serialization, and type hints; lightweight |
 | **gspread over raw Sheets API** | Higher-level API (auto-find sheet, append rows, col values); fewer lines |
 | **Per-user tokens (not single account)** | Each user connects their own Gmail; no central account needed |
-| **AI primary + regex fallback** | AI is more accurate (company/role/summary) but regex works when API is down |
+| **NVIDIA over Gemini** | Gemini hit 429 rate limits; NVIDIA works without rate limiting |
+| **AI primary + regex fallback** | AI more accurate but regex works when API is down |
+| **Parser stores provider name** | Column M stores provider name — enables auditing |
 | **cron-job.org over in-app scheduler** | PythonAnywhere free tier sleeps; external ping wakes it |
 | **Single HTML file (no JS framework)** | Zero build step; deployable as-is; works without npm |
 | **Base64-encoded token filenames** | Safe for filesystem (no @ or / in filenames); reversible for debugging |
+| **In-place updates over always-append** | Same application emails no longer create duplicate rows; priority system prevents regression |
+| **Two-pass AI pipeline** | Quick regex filter before API call saves credits on non-job emails |
+| **COMPANY_ALIASES for domain normalization** | Maps ATS/company domains to canonical names instead of raw title-case |
+| **8-stage pipeline instead of 5** | Separate phone_screen, assessment, and technical_interview stages for granular tracking |
+| **Email normalization** | Gmail ignores dots and case — normalize to prevent duplicate user entries |
+| **Cache-Control: no-store** | Prevents browser caching OAuth callback URL — eliminates spurious "Session expired" errors |

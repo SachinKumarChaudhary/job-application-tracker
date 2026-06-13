@@ -1,0 +1,326 @@
+<div id="dashboard" class="px-margin-page pt-stack-lg space-y-stack-lg">
+
+  <!-- ============ TAB: HOME ============ -->
+  <section class="tab-section" id="section-home">
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] tap-highlight-transparent" id="triggerBtn"
+        hx-get="/trigger" hx-target="#dashboard" hx-swap="outerHTML"
+        hx-indicator="#triggerBtn">
+        <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+        Check Now
+      </button>
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 bg-success text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] tap-highlight-transparent" id="testEmailBtn"
+        hx-get="/send-test-email" hx-target="#dashboard" hx-swap="outerHTML"
+        hx-indicator="#testEmailBtn">
+        <span class="material-symbols-outlined text-[18px]">mail</span>
+        Send Test Email
+      </button>
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface" id="testNotifBtn"
+        hx-post="/test-notification" hx-target="#dashboard" hx-swap="outerHTML"
+        hx-indicator="#testNotifBtn">
+        <span class="material-symbols-outlined text-[18px]">notifications</span>
+        Test Notification
+      </button>
+      {% if sheet_url %}
+      <a href="{{ sheet_url }}" target="_blank" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
+        <span class="material-symbols-outlined text-[18px]">table</span>
+        View Sheet
+      </a>
+      <a href="javascript:fetch('/format-sheet').then(r=>r.json()).then(d=>showToast(d.status==='ok'?'Sheet formatted!':'Failed'))" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
+        <span class="material-symbols-outlined text-[18px]">format_paint</span>
+        Format
+      </a>
+      <a href="javascript:fetch('/dedup-sheet').then(r=>r.json()).then(d=>showToast('Removed '+d.removed+' duplicates'))" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
+        <span class="material-symbols-outlined text-[18px]">merge_type</span>
+        Dedup
+      </a>
+      <a href="/export-xlsx" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
+        <span class="material-symbols-outlined text-[18px]">download</span>
+        Download XLSX
+      </a>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-2 gap-stack-md">
+      <div class="bento-card bg-surface-container-lowest p-gutter-card rounded-xl">
+        <p class="font-label-caps text-label-caps text-on-surface-variant uppercase">Auto-Poll</p>
+        <div class="font-body-base text-body-base mt-1 flex items-center gap-1" id="autoStatus">
+          <span class="status-dot gray"></span> Checking...
+        </div>
+      </div>
+      <div class="bento-card bg-surface-container-lowest p-gutter-card rounded-xl">
+        <p class="font-label-caps text-label-caps text-on-surface-variant uppercase">Last Poll</p>
+        <div class="font-body-base text-body-base mt-1">{% if last_run %}{{ last_run.strftime('%H:%M:%S') }}{% else %}&mdash;{% endif %}</div>
+      </div>
+      <div class="bento-card bg-surface-container-lowest p-gutter-card rounded-xl">
+        <p class="font-label-caps text-label-caps text-on-surface-variant uppercase">New (last run)</p>
+        <div class="font-display-lg text-display-lg mt-1 {% if last_count > 0 %}text-success{% else %}text-on-surface-variant{% endif %}">{{ last_count }}</div>
+      </div>
+      <div class="bento-card bg-surface-container-lowest p-gutter-card rounded-xl">
+        <p class="font-label-caps text-label-caps text-on-surface-variant uppercase">Notification</p>
+        <div class="font-body-base text-body-base mt-1 capitalize flex items-center gap-1" id="notifStatus">Checking...</div>
+      </div>
+    </div>
+
+    <div class="bento-card bg-surface-container p-gutter-card rounded-xl mt-stack-md">
+      <details class="group" {% if scheduler_alive %}open{% endif %}>
+        <summary class="flex items-center justify-between list-none cursor-pointer tap-highlight-transparent">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center">
+              <span class="material-symbols-outlined text-secondary text-[20px]">automation</span>
+            </div>
+            <div>
+              <h3 class="font-headline-md text-body-base font-semibold">24/7 Automation</h3>
+              <p class="font-body-sm text-body-sm text-on-surface-variant" id="autoSubtext">Status: {{ 'Running' if scheduler_alive else 'Offline' }}</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
+        </summary>
+        <div class="mt-stack-md pt-stack-md border-t border-outline-variant space-y-3">
+          <div class="flex items-center gap-2 text-secondary font-mono-label text-mono-label">
+            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            {{ 'System Operational' if scheduler_alive else 'Offline — cron-job.org not set up' }}
+          </div>
+          <p class="font-body-sm text-body-sm text-on-surface-variant">
+            Keep polling every {{ interval }} minutes via cron-job.org.
+          </p>
+          <div class="flex items-center gap-2 min-w-0">
+            <code id="cronUrl" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant text-sm font-mono-label break-all"></code>
+            <button onclick="copyCronUrl()" class="inline-flex items-center gap-1 shrink-0 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] bg-surface">
+              <span class="material-symbols-outlined text-[16px]">content_copy</span>
+              Copy
+            </button>
+          </div>
+          <p class="font-body-sm text-body-sm text-on-surface-variant">
+            <a href="https://cron-job.org" target="_blank" class="text-secondary">cron-job.org</a> → Create Cron Job → paste URL → every 15 minutes.
+          </p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ TAB: ENTRIES ============ -->
+  <section class="tab-section hidden" id="section-entries">
+    <div class="bento-card bg-surface-container-lowest rounded-xl overflow-hidden">
+      <div class="px-gutter-card py-3 border-b border-outline-variant flex items-center justify-between">
+        <h2 class="font-headline-md text-[16px] font-semibold">Recent Entries</h2>
+        <span class="badge text-xs bg-surface-container-highest text-on-surface-variant px-2 py-0.5 rounded">{{ rows|length }} rows</span>
+      </div>
+      {% if rows %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr>{% for h in headers %}<th{% if loop.index == 5 %} class="hide-mobile"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead>
+          <tbody>{% for row in rows|reverse %}
+            <tr>
+              {% for cell in row[:4] %}<td>{{ cell }}</td>{% endfor %}
+              <td class="hide-mobile text-sm text-on-surface-variant">{{ row[4] if row[4] else '' }}</td>
+              <td>
+                {% set stage = row[7]|lower if row[7] else '' %}
+                {% if row[7] %}<span class="badge text-xs px-2 py-0.5 rounded {% if stage == 'rejected' %}bg-error-container text-on-error-container{% elif stage in ['received','assessment','phone screen','interview','tech interview','offer letter'] %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{{ row[7] }}</span>{% endif %}
+                {% set stages = ['received','assessment','phone screen','interview','tech interview','offer letter'] %}
+                {% if stage in stages %}
+                <div class="progress-bar mt-1"><div class="fill" style="width:{{ (stages.index(stage) / (stages|length - 1)) * 100 }}%;background:var(--color-secondary);"></div></div>
+                {% elif stage == 'rejected' %}
+                <div class="progress-bar mt-1"><div class="fill" style="width:100%;background:var(--color-error);"></div></div>
+                {% endif %}
+              </td>
+              <td class="max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap text-sm text-on-surface-variant">{{ row[8] if row[8] else '' }}</td>
+            </tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-8 text-on-surface-variant text-sm">No entries yet. Click "Send Test Email" then "Check Now" to see the pipeline in action.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ============ TAB: ALERTS ============ -->
+  <section class="tab-section hidden space-y-stack-md" id="section-alerts">
+
+    {% if prefs.notification_channel == 'telegram' and not prefs.telegram_chat_id %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-center border-l-4 border-l-[#0088cc]">
+      <h2 class="font-headline-md text-body-base font-semibold mb-2">Connect Telegram</h2>
+      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Message the bot to link your account:</p>
+      <a href="https://t.me/{{ telegram_bot_username }}" target="_blank" class="inline-flex items-center gap-2 h-touch-target px-6 bg-[#0088cc] text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] no-underline hover:no-underline">
+        <span class="material-symbols-outlined text-[18px]">send</span>
+        Open @{{ telegram_bot_username }}
+      </a>
+      <p class="font-body-sm text-body-sm text-on-surface-variant mt-2">Send <code class="px-1 rounded bg-outline-variant/30">/start</code> — we'll detect it.</p>
+      <div id="telegramStatus" class="mt-2 font-body-sm text-body-sm"><span class="status-dot gray"></span> Waiting...</div>
+    </div>
+    {% endif %}
+
+    {% if prefs.notification_channel == 'whatsapp' and not prefs.whatsapp_apikey %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#25D366]">
+      <h2 class="font-headline-md text-body-base font-semibold mb-3">Activate WhatsApp</h2>
+      <div class="space-y-2 mb-4 text-sm text-on-surface-variant">
+        <div class="bg-surface-container rounded-lg p-3"><b>Step 1:</b> Add <code>+34 644 59 90 43</code> to contacts <a href="/download-contacts" class="text-[#25D366] font-semibold">(Download VCF)</a></div>
+        <div class="bg-surface-container rounded-lg p-3"><b>Step 2:</b> Tap the button to open WhatsApp</div>
+        <div class="bg-surface-container rounded-lg p-3"><b>Step 3:</b> Tap <b>Send</b> — you'll get an API key within 2 minutes</div>
+      </div>
+      <a href="https://wa.me/34644599043?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" class="inline-flex items-center gap-2 h-touch-target px-6 bg-[#25D366] text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] no-underline hover:no-underline">
+        <span class="material-symbols-outlined text-[18px]">chat</span>
+        Send to +34 644 59 90 43
+      </a>
+      <div class="flex items-center gap-2 mt-3">
+        <input type="text" id="whatsappApikey" placeholder="Paste API key" aria-label="WhatsApp API key" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+        <button onclick="saveWhatsAppApikey()" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Verify</button>
+      </div>
+      <div id="whatsappStatus" class="mt-1 text-sm"></div>
+    </div>
+    {% endif %}
+
+    {% if prefs.notification_channel == 'slack' %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#4A154B]">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-headline-md text-body-base font-semibold">Slack</h2>
+        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.slack_webhook_url %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.slack_webhook_url %}Connected{% else %}Not set up{% endif %}</span>
+      </div>
+      {% if prefs.slack_webhook_url %}
+      <p class="font-mono-label text-mono-label text-on-surface-variant break-all mb-3">{{ prefs.slack_webhook_url }}</p>
+      <div class="flex items-center gap-2">
+        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
+        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
+      </div>
+      {% else %}
+      <form onsubmit="return saveSlackWebhook(event)" class="flex items-center gap-2">
+        <input type="url" id="slackWebhookUrl" placeholder="https://hooks.slack.com/..." aria-label="Slack webhook URL" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
+        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Connect</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if prefs.notification_channel == 'discord' %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#5865F2]">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-headline-md text-body-base font-semibold">Discord</h2>
+        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.discord_webhook_url %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.discord_webhook_url %}Connected{% else %}Not set up{% endif %}</span>
+      </div>
+      {% if prefs.discord_webhook_url %}
+      <p class="font-mono-label text-mono-label text-on-surface-variant break-all mb-3">{{ prefs.discord_webhook_url }}</p>
+      <div class="flex items-center gap-2">
+        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
+        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
+      </div>
+      {% else %}
+      <form onsubmit="return saveDiscordWebhook(event)" class="flex items-center gap-2">
+        <input type="url" id="discordWebhookUrl" placeholder="https://discord.com/api/webhooks/..." aria-label="Discord webhook URL" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
+        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Connect</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if prefs.notification_channel == 'whatsapp_cloud' %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#25D366]">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-headline-md text-body-base font-semibold">WhatsApp Cloud</h2>
+        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.whatsapp_cloud_setup %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.whatsapp_cloud_setup %}Connected{% else %}Not set up{% endif %}</span>
+      </div>
+      {% if prefs.whatsapp_cloud_setup %}
+      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Recipient: <code class="text-secondary">{{ prefs.whatsapp_cloud_phone }}</code></p>
+      <div class="flex items-center gap-2">
+        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
+        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
+      </div>
+      {% else %}
+      <form onsubmit="return saveWhatsAppCloud(event)" class="flex items-center gap-2">
+        <input type="tel" id="whatsappCloudPhone" placeholder="+919999999999" aria-label="WhatsApp Cloud phone" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
+        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save Phone</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if prefs.notification_channel == 'twilio_whatsapp' %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#F22F46]">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-headline-md text-body-base font-semibold">Twilio WhatsApp</h2>
+        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.twilio_whatsapp_phone %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.twilio_whatsapp_phone %}Connected{% else %}Not set up{% endif %}</span>
+      </div>
+      {% if prefs.twilio_whatsapp_phone %}
+      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Phone: <code class="text-secondary">{{ prefs.twilio_whatsapp_phone }}</code></p>
+      <div class="flex items-center gap-2">
+        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
+        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
+      </div>
+      {% else %}
+      <form onsubmit="return saveTwilioWhatsApp(event)" class="flex items-center gap-2">
+        <input type="tel" id="twilioWhatsappPhone" placeholder="+919999999999" aria-label="Twilio WhatsApp phone" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
+        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save Phone</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if prefs.notification_channel == 'pushover' %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#FF6600]">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-headline-md text-body-base font-semibold">Pushover</h2>
+        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.pushover_user_key %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.pushover_user_key %}Connected{% else %}Not set up{% endif %}</span>
+      </div>
+      {% if prefs.pushover_user_key %}
+      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Key: <code class="text-secondary">{{ prefs.pushover_user_key }}</code></p>
+      <div class="flex items-center gap-2">
+        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
+        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
+      </div>
+      {% else %}
+      <form onsubmit="return savePushoverKey(event)" class="flex items-center gap-2">
+        <input type="text" id="pushoverUserKey" placeholder="uXXXXXXXXXXXXXXXXX" aria-label="Pushover user key" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
+        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Connect</button>
+      </form>
+      {% endif %}
+    </div>
+    {% elif not prefs.notification_channel or prefs.notification_channel == 'none' %}
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-center border border-outline-variant">
+      <span class="material-symbols-outlined text-[32px] text-on-surface-variant">notifications_off</span>
+      <p class="font-body-sm text-body-sm text-on-surface-variant mt-2">Notifications are disabled.</p>
+      <a href="/change-channel" class="inline-flex items-center gap-1 mt-3 h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps no-underline hover:no-underline">Enable Notifications</a>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- ============ TAB: SETTINGS ============ -->
+  <section class="tab-section hidden space-y-stack-md" id="section-settings">
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card">
+      <h2 class="font-headline-md text-body-base font-semibold mb-3">Activity Log</h2>
+      <div class="log-box" id="logBox">{% for line in logs %}<div>{{ line }}</div>{% endfor %}</div>
+    </div>
+
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card">
+      <h2 class="font-headline-md text-body-base font-semibold mb-1">Account</h2>
+      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">{{ email }}</p>
+      <div class="flex items-center justify-between gap-2">
+        <a href="/logout" class="inline-flex items-center gap-1 h-touch-target px-4 bg-error-container text-on-error-container rounded-xl font-label-caps text-label-caps no-underline hover:no-underline transition-transform active:scale-[0.98]">
+          <span class="material-symbols-outlined text-[16px]">logout</span>
+          Logout
+        </a>
+        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline transition-transform active:scale-[0.98]">
+          <span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+          Switch Channel
+        </a>
+      </div>
+    </div>
+
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card hidden" id="automationSection">
+      <h2 class="font-headline-md text-body-base font-semibold mb-2">
+        24/7 Automation
+        <span class="badge text-xs px-2 py-0.5 rounded bg-surface-container text-on-surface-variant" id="autoBadge">Setting up...</span>
+      </h2>
+      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">
+        Set up a free <a href="https://cron-job.org" target="_blank" class="text-secondary">cron-job.org</a> task to ping the URL below.
+      </p>
+      <div class="flex items-center gap-2 min-w-0">
+        <code id="cronUrl2" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant text-sm font-mono-label break-all"></code>
+        <button onclick="copyCronUrl2()" class="inline-flex items-center gap-1 shrink-0 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">
+          <span class="material-symbols-outlined text-[16px]">content_copy</span>
+          Copy
+        </button>
+      </div>
+    </div>
+  </section>
+
+</div>
