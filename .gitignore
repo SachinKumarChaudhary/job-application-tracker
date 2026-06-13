@@ -28,6 +28,9 @@ Thumbs.db
 Screenshot_*.jpg
 Screenshot_*.png
 
+# Auto-generated agent context
+.memcore-context.md
+
 # Session logs (internal notes, not for public)
 AGENTS.md
 SESSION_*.md
@@ -45,3 +48,18 @@ errorlog.txt
 # n8n duplicates / references
 n8n_workflow_export.json
 n8n_code_node.py
+
+# Generated binaries / screenshots
+*.xlsx
+*.vcf
+*.jpg
+*.png
+*.jpeg
+
+# Experimental / scratch files
+newdesign.html
+n8n_startup_report.md
+
+# Environment-specific setup guides
+HERMES_SETUP.md
+docs/linkedin-post-strategy.md
