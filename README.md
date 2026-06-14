@@ -81,13 +81,13 @@ sequenceDiagram
 | **Regex Fallback** | 50+ company patterns, 15+ role patterns, 60+ company aliases, 8-stage email classifier |
 | **Google Sheets Logging** | Auto-creates spreadsheet per user with 13 typed columns + in-place status updates |
 | **8-Stage Pipeline** | received → assessment → phone_screen → interview → tech_interview → offer (or rejection) |
-| **Multi-channel Alerts** | Telegram DM, Slack webhook, Discord webhook, WhatsApp (CallMeBot/Cloud/Twilio), Pushover |
+| **Multi-channel Alerts** | Telegram DM, Slack webhook, Discord webhook, WhatsApp (CallMeBot/Cloud/Twilio), Pushover, ntfy |
 | **24/7 Automation** | cron-job.org pings every 15 min — polls all users in one request |
 | **XLSX Export** | One-click download with styled headers, alternating rows, frozen panes |
 | **Sheet Formatting** | Dark navy headers, alternating banding, auto-resize columns, frozen header row |
 | **Two-Pass AI Filter** | Quick regex saves API credits by skipping non-job emails before AI call |
 | **Email Normalization** | Gmail dots/case handled — same user recognized across devices |
-| **11 Passing Tests** | Parser + model coverage |
+| **14 Passing Tests** | Parser + model coverage |
 | **$0 Budget** | PythonAnywhere free tier handles entire stack |
 
 </div>
@@ -185,7 +185,7 @@ pytest -v
 # tests/test_models.py::test_job_application_from_email PASSED
 # tests/test_models.py::test_job_application_to_sheet_row PASSED
 # tests/test_parser.py::test_extract_company_regex PASSED  [8 more]
-# ========== 11 passed in 0.15s ==========
+# ========== 14 passed in 0.15s ==========
 ```
 
 <br>
@@ -216,10 +216,10 @@ Framework:    Flask
 AI:           Gemini / Groq / NVIDIA (via API)
 Persistence:  Google Sheets (free database)
 Auth:         Google OAuth 2.0
-Notifications: Telegram Bot API · Slack Webhooks · Discord Webhooks · WhatsApp (CallMeBot/Cloud/Twilio) · Pushover
+Notifications: Telegram Bot API · Slack Webhooks · Discord Webhooks · WhatsApp (CallMeBot/Cloud/Twilio) · Pushover · ntfy
 Automation:   cron-job.org (free, every 15 min)
 Hosting:      PythonAnywhere free tier
-Testing:      pytest (11 tests)
+Testing:      pytest (14 tests)
 ```
 
 <br>
