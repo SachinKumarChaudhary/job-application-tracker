@@ -40,7 +40,6 @@ claudereply.md
 clauderespone.md
 CODEBASE_ANALYSIS.md
 REVIEW_DOC.md
-DESIGN.md
 
 # Session logs (internal notes, not for public)
 SESSION_*.md
@@ -52,11 +51,9 @@ manus_workflow_prompt.txt
 # Debug logs
 errorlog.txt
 
-# n8n artifacts (deprecated, archival only)
+# n8n duplicates (archival)
 n8n_workflow_export.json
 n8n_code_node.py
-n8n-workflow.json
-utility/
 
 # Generated binaries / screenshots
 *.xlsx
@@ -69,18 +66,14 @@ utility/
 newdesign.html
 n8n_startup_report.md
 
-# Device info & environment-specific guides (PII)
+# Device info & internal setup guides (PII)
 docs/DEVICE_ARCHITECTURE.md
-docs/n8n-workflow.md
 docs/linkedin-post-strategy.md
 HERMES_SETUP.md
 
 # Gmail filter XML (contains personal email)
 gmail_filter.xml
 
-# Standalone utility scripts
+# Standalone utility scripts (not part of main app)
 generate_docs.py
-telegram_relay.py
-telegram_worker.js
-relay_setup.sh
 setup.sh
