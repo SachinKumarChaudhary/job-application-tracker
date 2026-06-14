@@ -1,11 +1,15 @@
 <div id="dashboard" class="px-margin-page pt-stack-lg space-y-stack-md">
 
   {% if alert_message %}
-  <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-sm flex items-center gap-2 border-l-4
-    {% if 'failed' in alert_message.lower() or 'error' in alert_message.lower() %}border-l-error bg-error-container/10{% else %}border-l-success bg-success/10{% endif %}">
-    <span class="material-symbols-outlined text-[18px] {% if 'failed' in alert_message.lower() or 'error' in alert_message.lower() %}text-error{% else %}text-success{% endif %}">
-      {% if 'failed' in alert_message.lower() or 'error' in alert_message.lower() %}error{% else %}check_circle{% endif %}
-    </span>
+  {% set alert_icon = 'error' if 'failed' in alert_message.lower() or 'error' in alert_message.lower() else 'check_circle' %}
+  {% set alert_status = 'failed' if 'failed' in alert_message.lower() or 'error' in alert_message.lower() else 'ok' %}
+  <div id="alert-banner"
+       data-msg="{{ alert_message }}"
+       data-icon="{{ alert_icon }}"
+       data-status="{{ alert_status }}"
+       class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-sm flex items-center gap-2 border-l-4 transition-all duration-500
+    {% if alert_status == 'failed' %}border-l-error bg-error-container/10{% else %}border-l-success bg-success/10{% endif %}">
+    <span class="material-symbols-outlined text-[18px] {% if alert_status == 'failed' %}text-error{% else %}text-success{% endif %}">{{ alert_icon }}</span>
     <span>{{ alert_message }}</span>
   </div>
   {% endif %}
@@ -13,21 +17,18 @@
   <!-- ============ TAB: HOME ============ -->
   <section class="tab-section" id="section-home">
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] tap-highlight-transparent" id="triggerBtn"
-        hx-get="/trigger" hx-target="#dashboard" hx-swap="outerHTML"
-        hx-indicator="#triggerBtn">
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] tap-highlight-transparent"
+        onclick="fetch('/trigger',{credentials:'include'}).then(r=>r.text()).then(h=>document.getElementById('dashboard').outerHTML=h)">
         <span class="material-symbols-outlined text-[18px]">play_arrow</span>
         Check Now
       </button>
-      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 bg-success text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] tap-highlight-transparent" id="testEmailBtn"
-        hx-get="/send-test-email" hx-target="#dashboard" hx-swap="outerHTML"
-        hx-indicator="#testEmailBtn">
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 bg-success text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] tap-highlight-transparent"
+        onclick="fetch('/send-test-email',{credentials:'include'}).then(r=>r.text()).then(h=>document.getElementById('dashboard').outerHTML=h)">
         <span class="material-symbols-outlined text-[18px]">mail</span>
         Send Test Email
       </button>
-      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface" id="testNotifBtn"
-        hx-post="/test-notification" hx-target="#dashboard" hx-swap="outerHTML"
-        hx-indicator="#testNotifBtn">
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface"
+        onclick="fetch('/test-notification',{method:'POST',credentials:'include'}).then(r=>r.text()).then(h=>document.getElementById('dashboard').outerHTML=h)">
         <span class="material-symbols-outlined text-[18px]">notifications</span>
         Test Notification
       </button>
@@ -36,14 +37,21 @@
         <span class="material-symbols-outlined text-[18px]">table</span>
         View Sheet
       </a>
-      <a href="javascript:fetch('/format-sheet').then(r=>r.json()).then(d=>showToast(d.status==='ok'?'Sheet formatted!':'Failed'))" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface"
+        onclick="fetch('/format-sheet',{credentials:'include'}).then(r=>r.text()).then(h=>document.getElementById('dashboard').outerHTML=h)">
         <span class="material-symbols-outlined text-[18px]">format_paint</span>
         Format
-      </a>
-      <a href="javascript:fetch('/dedup-sheet').then(r=>r.json()).then(d=>showToast('Removed '+d.removed+' duplicates'))" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
+      </button>
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface"
+        onclick="fetch('/dedup-sheet',{credentials:'include'}).then(r=>r.text()).then(h=>document.getElementById('dashboard').outerHTML=h)">
         <span class="material-symbols-outlined text-[18px]">merge_type</span>
         Dedup
-      </a>
+      </button>
+      <button class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface"
+        onclick="fetch('/fix-sheet',{credentials:'include'}).then(r=>r.text()).then(h=>document.getElementById('dashboard').outerHTML=h)">
+        <span class="material-symbols-outlined text-[18px]">auto_fix</span>
+        Fix Data
+      </button>
       <a href="/export-xlsx" class="inline-flex items-center gap-1.5 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant transition-transform active:scale-[0.98] tap-highlight-transparent bg-surface no-underline hover:no-underline">
         <span class="material-symbols-outlined text-[18px]">download</span>
         Download XLSX
@@ -60,7 +68,7 @@
       </div>
       <div class="bento-card bg-surface-container-lowest p-gutter-card rounded-xl">
         <p class="font-label-caps text-label-caps text-on-surface-variant uppercase">Last Poll</p>
-        <div class="font-body-base text-body-base mt-1">{% if last_run %}{{ last_run.strftime('%H:%M:%S') }}{% else %}&mdash;{% endif %}</div>
+        <div class="font-body-base text-body-base mt-1">{% if last_run %}{{ last_run.strftime('%H:%M:%S') }} <span class="text-xs text-on-surface-variant">{{ user_timezone }}</span>{% else %}&mdash;{% endif %}</div>
       </div>
       <div class="bento-card bg-surface-container-lowest p-gutter-card rounded-xl">
         <p class="font-label-caps text-label-caps text-on-surface-variant uppercase">New (last run)</p>
@@ -119,10 +127,15 @@
       {% if rows %}
       <div class="table-wrap">
         <table>
-          <thead><tr>{% for h in headers %}<th{% if loop.index == 5 %} class="hide-mobile"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead>
+          <thead><tr>{% for h in headers %}
+            <th{% if loop.index in [5,11] %} class="hide-mobile"{% endif %}>{{ h }}</th>
+          {% endfor %}</tr></thead>
           <tbody>{% for row in rows|reverse %}
             <tr>
-              {% for cell in row[:4] %}<td>{{ cell }}</td>{% endfor %}
+              <td>{{ row[0] if row[0] else '' }}</td>
+              <td>{{ row[1] if row[1] else '' }}</td>
+              <td class="whitespace-nowrap">{{ row[2] if row[2] else '' }}</td>
+              <td class="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">{{ row[3] if row[3] else '' }}</td>
               <td class="hide-mobile text-sm text-on-surface-variant">{{ row[4] if row[4] else '' }}</td>
               <td>
                 {% set stage = row[7]|lower if row[7] else '' %}
@@ -135,6 +148,10 @@
                 {% endif %}
               </td>
               <td class="max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap text-sm text-on-surface-variant">{{ row[8] if row[8] else '' }}</td>
+              <td class="text-sm text-on-surface-variant">{{ row[9] if row[9] else '' }}</td>
+              <td class="text-sm text-on-surface-variant whitespace-nowrap">{{ row[10] if row[10] else '' }}</td>
+              <td class="text-sm">{{ row[11] if row[11] else '' }}</td>
+              <td class="hide-mobile text-xs text-on-surface-variant font-mono">{{ row[12] if row[12] else '' }}</td>
             </tr>{% endfor %}
           </tbody>
         </table>
@@ -147,150 +164,33 @@
 
   <!-- ============ TAB: ALERTS ============ -->
   <section class="tab-section hidden space-y-stack-md" id="section-alerts">
-
-    {% if prefs.notification_channel == 'telegram' and not prefs.telegram_chat_id %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-center border-l-4 border-l-[#0088cc]">
-      <h2 class="font-headline-md text-body-base font-semibold mb-2">Connect Telegram</h2>
-      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Message the bot to link your account:</p>
-      <a href="https://t.me/{{ telegram_bot_username }}" target="_blank" class="inline-flex items-center gap-2 h-touch-target px-6 bg-[#0088cc] text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] no-underline hover:no-underline">
-        <span class="material-symbols-outlined text-[18px]">send</span>
-        Open @{{ telegram_bot_username }}
-      </a>
-      <p class="font-body-sm text-body-sm text-on-surface-variant mt-2">Send <code class="px-1 rounded bg-outline-variant/30">/start</code> — we'll detect it.</p>
-      <div id="telegramStatus" class="mt-2 font-body-sm text-body-sm"><span class="status-dot gray"></span> Waiting...</div>
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'whatsapp' and not prefs.whatsapp_apikey %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#25D366]">
-      <h2 class="font-headline-md text-body-base font-semibold mb-3">Activate WhatsApp</h2>
-      <div class="space-y-2 mb-4 text-sm text-on-surface-variant">
-        <div class="bg-surface-container rounded-lg p-3"><b>Step 1:</b> Add <code>+34 644 59 90 43</code> to contacts <a href="/download-contacts" class="text-[#25D366] font-semibold">(Download VCF)</a></div>
-        <div class="bg-surface-container rounded-lg p-3"><b>Step 2:</b> Tap the button to open WhatsApp</div>
-        <div class="bg-surface-container rounded-lg p-3"><b>Step 3:</b> Tap <b>Send</b> — you'll get an API key within 2 minutes</div>
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card">
+      <h2 class="font-headline-md text-body-base font-semibold mb-3">Notification Log</h2>
+      <div class="space-y-2" id="notif-log-list">
+        {% for n in notif_log %}
+        <div class="flex items-start gap-3 p-3 rounded-xl {% if n.status == 'ok' %}bg-success/5{% else %}bg-error-container/10{% endif %} border-l-4 {% if n.status == 'ok' %}border-l-success{% else %}border-l-error{% endif %}">
+          <span class="material-symbols-outlined text-[18px] mt-0.5 {% if n.status == 'ok' %}text-success{% else %}text-error{% endif %}">
+            {% if n.status == 'ok' %}check_circle{% else %}error{% endif %}
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 text-sm">
+              <span class="font-medium">{{ n.channel }}</span>
+              <span class="text-xs text-on-surface-variant">{{ n.ts }}</span>
+              {% if n.status == 'ok' %}<span class="badge text-xs px-1.5 py-0.5 rounded bg-success/20 text-success">Sent</span>{% else %}<span class="badge text-xs px-1.5 py-0.5 rounded bg-error-container text-on-error-container">Failed</span>{% endif %}
+            </div>
+            <p class="text-xs text-on-surface-variant mt-0.5 truncate">{{ n.preview }}</p>
+          </div>
+        </div>
+        {% endfor %}
       </div>
-      <a href="https://wa.me/34644599043?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" class="inline-flex items-center gap-2 h-touch-target px-6 bg-[#25D366] text-white rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98] no-underline hover:no-underline">
-        <span class="material-symbols-outlined text-[18px]">chat</span>
-        Send to +34 644 59 90 43
-      </a>
-      <div class="flex items-center gap-2 mt-3">
-        <input type="text" id="whatsappApikey" placeholder="Paste API key" aria-label="WhatsApp API key" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-        <button onclick="saveWhatsAppApikey()" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Verify</button>
+      {% if not notif_log %}
+      <div class="text-center py-8" id="notif-log-empty">
+        <span class="material-symbols-outlined text-[32px] text-on-surface-variant">notifications_none</span>
+        <p class="text-sm text-on-surface-variant mt-2">No notifications sent yet.</p>
+        <p class="text-xs text-on-surface-variant mt-1">Click <b>Check Now</b> on the Home tab, then check here.</p>
       </div>
-      <div id="whatsappStatus" class="mt-1 text-sm"></div>
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'slack' %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#4A154B]">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-headline-md text-body-base font-semibold">Slack</h2>
-        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.slack_webhook_url %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.slack_webhook_url %}Connected{% else %}Not set up{% endif %}</span>
-      </div>
-      {% if prefs.slack_webhook_url %}
-      <p class="font-mono-label text-mono-label text-on-surface-variant break-all mb-3">{{ prefs.slack_webhook_url }}</p>
-      <div class="flex items-center gap-2">
-        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
-        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
-      </div>
-      {% else %}
-      <form onsubmit="return saveSlackWebhook(event)" class="flex items-center gap-2">
-        <input type="url" id="slackWebhookUrl" placeholder="https://hooks.slack.com/..." aria-label="Slack webhook URL" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
-        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Connect</button>
-      </form>
       {% endif %}
     </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'discord' %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#5865F2]">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-headline-md text-body-base font-semibold">Discord</h2>
-        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.discord_webhook_url %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.discord_webhook_url %}Connected{% else %}Not set up{% endif %}</span>
-      </div>
-      {% if prefs.discord_webhook_url %}
-      <p class="font-mono-label text-mono-label text-on-surface-variant break-all mb-3">{{ prefs.discord_webhook_url }}</p>
-      <div class="flex items-center gap-2">
-        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
-        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
-      </div>
-      {% else %}
-      <form onsubmit="return saveDiscordWebhook(event)" class="flex items-center gap-2">
-        <input type="url" id="discordWebhookUrl" placeholder="https://discord.com/api/webhooks/..." aria-label="Discord webhook URL" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
-        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Connect</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'whatsapp_cloud' %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#25D366]">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-headline-md text-body-base font-semibold">WhatsApp Cloud</h2>
-        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.whatsapp_cloud_setup %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.whatsapp_cloud_setup %}Connected{% else %}Not set up{% endif %}</span>
-      </div>
-      {% if prefs.whatsapp_cloud_setup %}
-      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Recipient: <code class="text-secondary">{{ prefs.whatsapp_cloud_phone }}</code></p>
-      <div class="flex items-center gap-2">
-        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
-        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
-      </div>
-      {% else %}
-      <form onsubmit="return saveWhatsAppCloud(event)" class="flex items-center gap-2">
-        <input type="tel" id="whatsappCloudPhone" placeholder="+919999999999" aria-label="WhatsApp Cloud phone" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
-        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save Phone</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'twilio_whatsapp' %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#F22F46]">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-headline-md text-body-base font-semibold">Twilio WhatsApp</h2>
-        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.twilio_whatsapp_phone %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.twilio_whatsapp_phone %}Connected{% else %}Not set up{% endif %}</span>
-      </div>
-      {% if prefs.twilio_whatsapp_phone %}
-      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Phone: <code class="text-secondary">{{ prefs.twilio_whatsapp_phone }}</code></p>
-      <div class="flex items-center gap-2">
-        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
-        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
-      </div>
-      {% else %}
-      <form onsubmit="return saveTwilioWhatsApp(event)" class="flex items-center gap-2">
-        <input type="tel" id="twilioWhatsappPhone" placeholder="+919999999999" aria-label="Twilio WhatsApp phone" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
-        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save Phone</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    {% if prefs.notification_channel == 'pushover' %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card border-l-4 border-l-[#FF6600]">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-headline-md text-body-base font-semibold">Pushover</h2>
-        <span class="badge text-xs px-2 py-0.5 rounded {% if prefs.pushover_user_key %}bg-success/20 text-success{% else %}bg-surface-container text-on-surface-variant{% endif %}">{% if prefs.pushover_user_key %}Connected{% else %}Not set up{% endif %}</span>
-      </div>
-      {% if prefs.pushover_user_key %}
-      <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">Key: <code class="text-secondary">{{ prefs.pushover_user_key }}</code></p>
-      <div class="flex items-center gap-2">
-        <button onclick="testNotification()" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface transition-transform active:scale-[0.98]">Test</button>
-        <a href="/change-channel" class="inline-flex items-center gap-1 h-touch-target px-4 border border-outline-variant rounded-xl font-label-caps text-label-caps text-on-surface-variant bg-surface no-underline hover:no-underline">Change</a>
-      </div>
-      {% else %}
-      <form onsubmit="return savePushoverKey(event)" class="flex items-center gap-2">
-        <input type="text" id="pushoverUserKey" placeholder="uXXXXXXXXXXXXXXXXX" aria-label="Pushover user key" class="flex-1 h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required>
-        <button type="submit" class="h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Connect</button>
-      </form>
-      {% endif %}
-    </div>
-    {% elif not prefs.notification_channel or prefs.notification_channel == 'none' %}
-    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card text-center border border-outline-variant">
-      <span class="material-symbols-outlined text-[32px] text-on-surface-variant">notifications_off</span>
-      <p class="font-body-sm text-body-sm text-on-surface-variant mt-2">Notifications are disabled.</p>
-      <a href="/change-channel" class="inline-flex items-center gap-1 mt-3 h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps no-underline hover:no-underline">Enable Notifications</a>
-    </div>
-    {% endif %}
   </section>
 
   <!-- ============ TAB: SETTINGS ============ -->
@@ -313,6 +213,18 @@
           Switch Channel
         </a>
       </div>
+    </div>
+
+    <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card">
+      <h2 class="font-headline-md text-body-base font-semibold mb-3">Timezone</h2>
+      <form onsubmit="return saveTimezone(event)" class="flex flex-col gap-2">
+        <select id="timezoneSelect" class="h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
+          {% for val, label in timezone_options %}
+          <option value="{{ val }}"{% if val == user_timezone %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="self-start h-touch-target px-4 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save Timezone</button>
+      </form>
     </div>
 
     <div class="bento-card bg-surface-container-lowest rounded-xl p-gutter-card hidden" id="automationSection">

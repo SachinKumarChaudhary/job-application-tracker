@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>Change Channel — Offer Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        surface: "var(--color-surface)",
+        "surface-dim": "var(--color-surface-dim)",
+        "surface-bright": "var(--color-surface-bright)",
+        "surface-container": "var(--color-surface-container)",
+        "surface-container-low": "var(--color-surface-container-low)",
+        "surface-container-lowest": "var(--color-surface-container-lowest)",
+        "surface-container-high": "var(--color-surface-container-high)",
+        "surface-container-highest": "var(--color-surface-container-highest)",
+        "on-surface": "var(--color-on-surface)",
+        "on-surface-variant": "var(--color-on-surface-variant)",
+        "outline-variant": "var(--color-outline-variant)",
+        secondary: "var(--color-secondary)",
+        "on-secondary": "var(--color-on-secondary)",
+        error: "var(--color-error)",
+        success: "var(--color-success)",
+      },
+      spacing: { "touch-target": "44px" },
+    },
+  },
+}
+</script>
+<style>
+:root {
+  --color-surface: #faf9f9;
+  --color-surface-dim: #dbdad9;
+  --color-surface-bright: #faf9f9;
+  --color-surface-container: #efeded;
+  --color-surface-container-low: #f5f3f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e9e8e8;
+  --color-surface-container-highest: #e3e2e2;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #444748;
+  --color-outline: #747878;
+  --color-outline-variant: #c4c7c7;
+  --color-secondary: #0057c0;
+  --color-on-secondary: #ffffff;
+  --color-error: #ba1a1a;
+  --color-success: #006e1a;
+}
+.dark {
+  --color-surface: #1a1a1a;
+  --color-surface-dim: #111111;
+  --color-surface-bright: #383838;
+  --color-surface-container: #252525;
+  --color-surface-container-low: #1e1e1e;
+  --color-surface-container-lowest: #111111;
+  --color-surface-container-high: #2e2e2e;
+  --color-surface-container-highest: #383838;
+  --color-on-surface: #e3e3e3;
+  --color-on-surface-variant: #a1a1a1;
+  --color-outline: #666666;
+  --color-outline-variant: #333333;
+  --color-secondary: #7ab3ff;
+  --color-on-secondary: #001a43;
+  --color-error: #ffb4ab;
+  --color-success: #3ecf8e;
+}
+body { font-family: Inter, sans-serif; background: var(--color-surface); color: var(--color-on-surface); }
+.channel-card { border: 1px solid var(--color-outline-variant); border-radius: 12px; padding: 16px; background: var(--color-surface-container-lowest); cursor: pointer; transition: all .15s; }
+.channel-card:hover { border-color: var(--color-secondary); box-shadow: 0 0 0 1px var(--color-secondary); }
+.channel-card.selected { border-color: var(--color-secondary); background: color-mix(in srgb, var(--color-secondary) 12%, transparent); }
+.theme-btn { width: 36px; height: 36px; border: 1px solid var(--color-outline-variant); border-radius: 50%; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--color-on-surface-variant); }
+.theme-btn:hover { border-color: var(--color-secondary); color: var(--color-secondary); }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md relative">
+    <button onclick="toggleTheme()" class="theme-btn absolute top-0 right-0" aria-label="Toggle theme">
+      <span class="material-symbols-outlined text-[18px]" id="themeIcon">dark_mode</span>
+    </button>
+
+    <a href="/" class="inline-flex items-center gap-1 text-sm text-on-surface-variant no-underline hover:text-secondary mb-6">
+      <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+      Back to Dashboard
+    </a>
+    <h1 class="text-xl font-semibold mb-1">Notification Channel</h1>
+    <p class="text-sm text-on-surface-variant mb-6">Pick how you want to receive job alerts.</p>
+
+    <form id="channelForm" action="/save-prefs" method="POST" class="space-y-3">
+      {% set channels = [
+        ("telegram", "Telegram", "send", "#0088cc"),
+        ("ntfy", "ntfy.sh", "notifications", "#4CAF50"),
+        ("slack", "Slack", "notifications", "#4A154B"),
+        ("discord", "Discord", "notifications", "#5865F2"),
+        ("none", "None (disable)", "notifications_off", ""),
+      ] %}
+      {% if whatsapp_enabled %}
+        {% set channels = [("whatsapp", "WhatsApp (CallMeBot)", "chat", "#25D366")] + channels %}
+      {% endif %}
+      {% for ch in channels %}
+      <label class="channel-card flex items-center gap-3" onclick="select(this, '{{ ch[0] }}')">
+        <input type="radio" name="channel" value="{{ ch[0] }}" class="hidden" />
+        <span class="material-symbols-outlined text-[24px]" style="color:{{ ch[3] }}">{{ ch[2] }}</span>
+        <div class="flex-1">
+          <div class="font-medium text-sm">{{ ch[1] }}</div>
+        </div>
+        <span class="material-symbols-outlined text-[18px] text-on-surface-variant">chevron_right</span>
+      </label>
+      {% endfor %}
+
+      <div id="extraFields" class="space-y-3 mt-4 hidden"></div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <a href="/" class="flex-1 text-center h-touch-target leading-[44px] border border-outline-variant rounded-xl text-sm font-medium no-underline hover:no-underline">Cancel</a>
+        <button type="submit" class="flex-1 h-touch-target bg-secondary text-on-secondary rounded-xl text-sm font-medium transition-transform active:scale-[0.98]">Continue</button>
+      </div>
+    </form>
+
+
+  </div>
+
+  <div id="formError" class="text-sm text-error hidden"></div>
+
+  <script>
+  let selected = null;
+  const PREFS = {{ prefs | tojson }};
+
+  const FIELD_TEMPLATES = {
+    telegram: (PREFS.telegram_chat_id
+      ? '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant space-y-2"><div class="flex items-center gap-2 text-success"><span class="material-symbols-outlined text-[18px]">check_circle</span>Connected as <b>@' + (PREFS.telegram_username || 'username') + '</b></div><p class="text-xs">To change your username, enter a new one below and re-verify.</p></div>'
+      : '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant space-y-2"><div><b>Step 1:</b> Tap the button below to open Telegram</div><div><b>Step 2:</b> Send <code class="px-1 rounded bg-outline-variant/30">/start</code> to the bot</div><div><b>Step 3:</b> Enter your username below and save</div></div>') + '<a href="https://t.me/GotJobAlert_bot" target="_blank" class="inline-flex items-center gap-2 h-touch-target px-6 bg-[#0088cc] text-white rounded-xl text-sm font-medium no-underline hover:no-underline transition-transform active:scale-[0.98]"><span class="material-symbols-outlined text-[18px]">send</span>Open @GotJobAlert_bot</a><div><label class="text-sm font-medium mt-2 block">Telegram Username</label><input type="text" name="telegram_username" placeholder="@username" value="' + (PREFS.telegram_username || '') + '" class="w-full h-touch-target px-3 mt-1 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary"><p class="text-xs text-on-surface-variant mt-1">Message <b>@GotJobAlert_bot</b> with <code>/start</code> first, then enter your username.</p></div></div>',
+    whatsapp: '<div class="space-y-3">' + (PREFS.whatsapp_apikey ? '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant"><div class="flex items-center gap-2 text-success"><span class="material-symbols-outlined text-[18px]">check_circle</span>WhatsApp connected as <b>' + (PREFS.whatsapp_phone || 'your number') + '</b></div></div>' : '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant space-y-2"><div><b>Step 1:</b> Add <code>+34 644 59 90 43</code> to your contacts. <a href="/download-contacts" class="text-[#25D366] font-semibold">Download VCF</a></div><div><b>Step 2:</b> Tap the button below to send the activation message</div><div><b>Step 3:</b> Wait up to 2 minutes — the bot will reply with your <b>API key</b></div></div>') + '<a href="https://wa.me/34644599043?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" class="inline-flex items-center gap-2 h-touch-target px-6 bg-[#25D366] text-white rounded-xl text-sm font-medium no-underline hover:no-underline transition-transform active:scale-[0.98]"><span class="material-symbols-outlined text-[18px]">chat</span>Send "I allow callmebot to send me messages"</a><div><label class="text-sm font-medium mt-2 block">Your Phone Number</label><input type="tel" name="whatsapp_phone" placeholder="+919999999999" value="' + (PREFS.whatsapp_phone || '') + '" class="w-full h-touch-target px-3 mt-1 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required></div><div><label class="text-sm font-medium">API Key</label><input type="text" name="whatsapp_apikey" placeholder="Paste the API key the bot sent you" value="' + (PREFS.whatsapp_apikey || '') + '" class="w-full h-touch-target px-3 mt-1 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary"><p class="text-xs text-on-surface-variant mt-1">The bot sends this after you activate.</p></div></div>',
+    ntfy: '<div class="space-y-3">' + (PREFS.ntfy_topic ? '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant"><div class="flex items-center gap-2 text-success"><span class="material-symbols-outlined text-[18px]">check_circle</span>ntfy connected — topic <b>' + PREFS.ntfy_topic + '</b></div></div>' : '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant space-y-2"><div><b>Step 1:</b> Install the <b>ntfy</b> app on your phone (free, no account needed)</div><div><b>Step 2:</b> Subscribe to a topic name of your choice in the app</div><div><b>Step 3:</b> Enter the same topic name below and save</div></div>') + '<div><label class="text-sm font-medium">Topic Name</label><input type="text" name="ntfy_topic" placeholder="gotjobalert-sachin" value="' + (PREFS.ntfy_topic || '') + '" class="w-full h-touch-target px-3 mt-1 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required><p class="text-xs text-on-surface-variant mt-1">Pick something unique. Get the app at <b>ntfy.sh</b> — free, no purchase needed.</p></div></div>',
+    slack: '<div class="space-y-3">' + (PREFS.slack_webhook_url ? '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant"><div class="flex items-center gap-2 text-success"><span class="material-symbols-outlined text-[18px]">check_circle</span>Slack connected</div><p class="text-xs mt-1 break-all">' + PREFS.slack_webhook_url + '</p></div>' : '') + '<div><label class="text-sm font-medium">Slack Webhook URL</label><input type="url" name="slack_webhook_url" id="slackUrlInput" placeholder="https://hooks.slack.com/services/..." value="' + (PREFS.slack_webhook_url || '') + '" class="w-full h-touch-target px-3 mt-1 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" oninput="validateSlackUrl()" required><span id="slackUrlStatus" class="text-xs mt-1 block"></span></div><div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant"><b class="block mb-1">Get your webhook:</b><ol class="ml-4 space-y-1"><li><a href="https://api.slack.com/apps" target="_blank" class="text-secondary">api.slack.com/apps</a> → Create New App → From scratch</li><li>Name it &quot;Offer Tracker&quot; → pick workspace</li><li>Incoming Webhooks → toggle On → Add New Webhook</li><li>Pick a <b>public</b> channel → Allow → copy URL</li></ol><div class="mt-2 p-2 rounded-lg bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"><b>No channels?</b> Create a public channel first.</div></div></div>',
+    discord: '<div class="space-y-3">' + (PREFS.discord_webhook_url ? '<div class="bg-surface-container rounded-lg p-3 text-sm text-on-surface-variant"><div class="flex items-center gap-2 text-success"><span class="material-symbols-outlined text-[18px]">check_circle</span>Discord connected</div><p class="text-xs mt-1 break-all">' + PREFS.discord_webhook_url + '</p></div>' : '') + '<div><label class="text-sm font-medium">Discord Webhook URL</label><input type="url" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." value="' + (PREFS.discord_webhook_url || '') + '" class="w-full h-touch-target px-3 mt-1 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" required></div><div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant"><b class="block mb-1">Get webhook:</b><ol class="ml-4 space-y-1"><li>Discord → Server Settings → Integrations</li><li>Create Webhook → name &quot;Offer Tracker&quot;</li><li>Copy Webhook URL</li></ol></div></div>',
+  };
+
+  function select(el, val) {
+    document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input[type=radio]').checked = true;
+    selected = val;
+    const extra = document.getElementById('extraFields');
+    const err = document.getElementById('formError');
+    err.classList.add('hidden');
+    extra.innerHTML = FIELD_TEMPLATES[val] || '';
+    extra.classList.toggle('hidden', !FIELD_TEMPLATES[val]);
+  }
+
+  function validateSlackUrl() {
+    const el = document.getElementById('slackUrlInput');
+    const st = document.getElementById('slackUrlStatus');
+    if (!el || !st) return;
+    const v = el.value.trim();
+    if (!v) { st.textContent = ''; return; }
+    if (v.startsWith('https://hooks.slack.com/')) { st.innerHTML = '<span style="color:var(--color-success)">Valid URL</span>'; }
+    else { st.innerHTML = '<span style="color:var(--color-error)">Must start with https://hooks.slack.com/</span>'; }
+  }
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.classList.toggle('dark');
+    const isDark = html.classList.contains('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    document.getElementById('themeIcon').textContent = isDark ? 'light_mode' : 'dark_mode';
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.content = isDark ? 'dark' : 'light';
+  }
+
+  (function() {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved === 'dark' || (!saved && prefersDark)) {
+      document.documentElement.classList.add('dark');
+      document.getElementById('themeIcon').textContent = 'light_mode';
+      document.querySelector('meta[name="color-scheme"]').content = 'dark';
+    }
+  })();
+
+  document.getElementById('channelForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const err = document.getElementById('formError');
+    err.classList.add('hidden');
+    if (!selected) { err.textContent = 'Select a channel first.'; err.classList.remove('hidden'); return; }
+    const fd = new FormData(this);
+    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const d = await r.json();
+    if (d.status === 'ok') { window.location.href = '/'; }
+    else { err.textContent = d.error || 'Failed'; err.classList.remove('hidden'); }
+  });
+  </script>
+</body>
+</html>

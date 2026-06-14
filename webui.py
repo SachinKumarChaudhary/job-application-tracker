@@ -4,6 +4,7 @@ Offer Tracker — Multi-user web app with browser OAuth, notification prefs, and
 """
 import os, sys, threading, time, json, base64
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from email.mime.text import MIMEText
 
@@ -14,7 +15,8 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import Flow
-from src.config import logger, POLL_INTERVAL_MINUTES, BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, CRON_SECRET, GMAIL_QUERY
+from src.config import logger, POLL_INTERVAL_MINUTES, BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, CRON_SECRET, GMAIL_QUERY, WHATSAPP_ENABLED
+from src.models import EMAIL_TYPE_LABEL
 from src.notifier import notify_single
 import requests as http_requests
 
@@ -43,13 +45,29 @@ SCOPES = [
 CREDENTIALS_DIR = BASE_DIR / "credentials"
 CREDENTIALS_PATH = CREDENTIALS_DIR / "credentials.json"
 PREFS_PATH = BASE_DIR / "user_prefs.json"
+NOTIF_LOG_PATH = BASE_DIR / "user_notif_log.json"
 SHEET_HEADERS = ["Company Name", "Job Role", "Application Date", "Email Subject", "Sender Email", "Message ID", "Alert Sent", "Email Type", "Summary", "Location", "Salary", "Next Step", "Parser"]
 
 last_run: dict[str, datetime | None] = {}
 last_count: dict[str, int] = {}
 last_error: dict[str, str] = {}
 log_buffer: dict[str, list[str]] = {}
+notif_log: dict[str, list[dict]] = {}
 _prefs_lock = threading.Lock()
+
+
+def log_notif(email: str, channel: str, status: str, preview: str) -> None:
+    notif_log.setdefault(email, []).append({
+        "ts": datetime.now().strftime("%H:%M:%S"),
+        "channel": channel,
+        "status": status,
+        "preview": preview[:80],
+    })
+    # Keep only last 100 per user
+    if len(notif_log[email]) > 100:
+        notif_log[email] = notif_log[email][-100:]
+    save_notif_log(notif_log)
+    logger.info(f"[{email}] notif {channel}={status}: {preview[:60]}")
 
 
 def log(email: str, msg: str) -> None:
@@ -86,6 +104,29 @@ def get_user_email() -> str | None:
     return norm
 
 
+TIMEZONE_OPTIONS = [
+    ("Asia/Kolkata", "IST (UTC+5:30)"),
+    ("Asia/Dubai", "GST (UTC+4)"),
+    ("Asia/Singapore", "SGT (UTC+8)"),
+    ("Asia/Tokyo", "JST (UTC+9)"),
+    ("Asia/Shanghai", "CST (UTC+8)"),
+    ("Australia/Sydney", "AEDT (UTC+11)"),
+    ("Europe/London", "GMT/BST (UTC+0/+1)"),
+    ("Europe/Berlin", "CET/CEST (UTC+1/+2)"),
+    ("US/Eastern", "ET (UTC-5/-4)"),
+    ("US/Pacific", "PT (UTC-8/-7)"),
+    ("UTC", "UTC"),
+]
+
+
+def localize_datetime(dt: datetime | None, tz_str: str = "Asia/Kolkata") -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt.astimezone(ZoneInfo(tz_str))
+
+
 def load_prefs() -> dict:
     with _prefs_lock:
         if PREFS_PATH.exists():
@@ -98,14 +139,37 @@ def save_prefs(prefs: dict) -> None:
         PREFS_PATH.write_text(json.dumps(prefs, indent=2))
 
 
+def load_notif_log() -> dict:
+    with _prefs_lock:
+        if NOTIF_LOG_PATH.exists():
+            try:
+                return json.loads(NOTIF_LOG_PATH.read_text())
+            except Exception:
+                return {}
+        return {}
+
+
+def save_notif_log(log: dict) -> None:
+    with _prefs_lock:
+        NOTIF_LOG_PATH.write_text(json.dumps(log, indent=2))
+
+
+# Load notif_log on startup
+notif_log = load_notif_log()
+
+
 def get_user_prefs(email: str) -> dict:
     prefs = load_prefs()
+    p = {}
     if email in prefs:
-        return prefs[email]
-    for k, v in prefs.items():
-        if normalize_email(k) == email:
-            return v
-    return {}
+        p = prefs[email]
+    else:
+        for k, v in prefs.items():
+            if normalize_email(k) == email:
+                p = v
+                break
+    p.setdefault("timezone", "Asia/Kolkata")
+    return p
 
 
 def set_user_pref(email: str, key: str, value: str) -> None:
@@ -296,17 +360,103 @@ def format_sheet(email: str) -> bool:
         return False
 
 
-def send_test_email(email: str) -> None:
+def send_test_email(email: str) -> str:
     service = get_gmail_service(email)
-    msg = MIMEText(
-        "Dear Candidate,\n\nThank you for your application for the Software Engineer Intern position at Google.\n"
-        "We have received your application and will review it shortly.\n\nBest regards,\nGoogle Hiring Team"
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tag = ts.replace(" ", "_").replace(":", "")
+    body = (
+        f"Dear Candidate,\n\nThank you for your application for the Software Engineer Intern position at Google.\n"
+        f"We have received your application and will review it shortly.\n\n"
+        f"--- Test email sent at {ts} ---\n\nBest regards,\nGoogle Hiring Team"
     )
+    msg = MIMEText(body)
     msg["To"] = msg["From"] = email
-    msg["Subject"] = "Application Received: Software Engineer Intern at Google"
+    msg["Subject"] = f"Application Received: Test-{tag} at Google ({ts})"
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    service.users().messages().send(userId="me", body={"raw": raw}).execute()
-    log(email, "Test email sent")
+    service.users().messages().insert(
+        userId="me",
+        body={"raw": raw, "labelIds": ["INBOX", "UNREAD"]},
+    ).execute()
+    log(email, f"Test email inserted at {ts}")
+
+    time.sleep(3)
+    creds = get_creds(email)
+    if not creds:
+        return "Test email inserted, but poll failed: no credentials"
+    gmail = build("gmail", "v1", credentials=creds)
+    sheets = build("sheets", "v4", credentials=creds)
+
+    query = f"({GMAIL_QUERY}) is:unread"
+    results = gmail.users().messages().list(userId="me", q=query, maxResults=5).execute()
+    msgs = results.get("messages", [])
+    if not msgs:
+        broader = gmail.users().messages().list(userId="me", q="is:unread", maxResults=5).execute()
+        all_unread = broader.get("messages", [])
+        subjects = []
+        if all_unread:
+            for m in all_unread:
+                full = gmail.users().messages().get(userId="me", id=m["id"], format="metadata", metadataHeaders=["Subject"]).execute()
+                hdrs = {h["name"]: h["value"] for h in full["payload"]["headers"]}
+                subjects.append(hdrs.get("Subject", "?"))
+        log(email, f"Test email NOT found by poll query: {subjects}")
+        return f"Test email inserted but NOT found by poll query. Unread inbox subjects: {subjects}"
+
+    sid = _find_or_create_sheet(email)
+    known_ids = set()
+    existing = sheets.spreadsheets().values().get(spreadsheetId=sid, range="F:F").execute()
+    if existing.get("values"):
+        known_ids = {r[0] for r in existing["values"][1:] if r}
+
+    from src.parser import parse_email
+
+    count = 0
+    notify_results = []
+    sheet_ok = False
+    for m in msgs:
+        try:
+            full = gmail.users().messages().get(userId="me", id=m["id"], format="full").execute()
+            headers = {h["name"]: h["value"] for h in full["payload"]["headers"]}
+            msg_id = headers.get("Message-ID", "")
+            if msg_id in known_ids:
+                continue
+
+            app = parse_email(full)
+            if not app:
+                gmail.users().messages().modify(userId="me", id=m["id"], body={"removeLabelIds": ["UNREAD"]}).execute()
+                continue
+
+            sheets.spreadsheets().values().append(
+                spreadsheetId=sid, range="A:M",
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": [app.to_sheet_row()]}
+            ).execute()
+            known_ids.add(msg_id)
+            sheet_ok = True
+            log(email, f"[Test] {app.parser}: Appended {app.company_name} - {app.job_role}")
+
+            count += 1
+            prefs = get_user_prefs(email)
+            ch = prefs.get("notification_channel", "default")
+            ok = notify_single(ch, prefs, "[TEST] " + app.to_alert_text(), email)
+            log_notif(email, ch, "ok" if ok else "fail", app.to_alert_text()[:60])
+            notify_results.append(f"{ch}={'ok' if ok else 'fail'}")
+
+            gmail.users().messages().modify(userId="me", id=m["id"], body={"removeLabelIds": ["UNREAD"]}).execute()
+        except Exception as e:
+            log(email, f"Failed processing message {m['id']}: {e}")
+            import traceback
+            logger.error(f"Send-test-pipeline error:\n{traceback.format_exc()}")
+
+    parts = [f"{count} email(s) processed"]
+    if sheet_ok:
+        parts.append("sheet ✓")
+    if notify_results:
+        parts.append(f"notifications: {', '.join(notify_results)}")
+    parts.append(f"query matched {len(msgs)} unread")
+    result = " | ".join(parts)
+    log(email, f"Test pipeline result: {result}")
+    return f"Test pipeline complete: {result}"
 
 
 def run_poll(email: str) -> None:
@@ -319,14 +469,27 @@ def run_poll(email: str) -> None:
         gmail = build("gmail", "v1", credentials=creds)
         sheets = build("sheets", "v4", credentials=creds)
 
+        query = f"({GMAIL_QUERY}) is:unread"
+        logger.info(f"GMAIL_QUERY used: {GMAIL_QUERY}")
         results = gmail.users().messages().list(
-            userId="me",
-            q=f"({GMAIL_QUERY}) is:unread",
-            maxResults=20,
+            userId="me", q=query, maxResults=20,
         ).execute()
 
         msgs = results.get("messages", [])
+        logger.info(f"Gmail returned {len(msgs)} unread messages matching query")
         if not msgs:
+            # Try broader query to debug: just is:unread from:me
+            broader = gmail.users().messages().list(
+                userId="me", q="is:unread", maxResults=5,
+            ).execute()
+            all_unread = broader.get("messages", [])
+            if all_unread:
+                for m in all_unread[:3]:
+                    full = gmail.users().messages().get(userId="me", id=m["id"], format="metadata", metadataHeaders=["Subject"]).execute()
+                    hdrs = {h["name"]: h["value"] for h in full["payload"]["headers"]}
+                    logger.info(f"  Unread msg subject: {hdrs.get('Subject', '?')}")
+            else:
+                logger.info("No unread messages at all in inbox")
             log(email, "No matching emails found")
             last_run[email] = datetime.now()
             last_count[email] = 0
@@ -399,7 +562,9 @@ def run_poll(email: str) -> None:
 
                 from src.notifier import notify_single
                 prefs = get_user_prefs(email)
-                notify_single(prefs.get("notification_channel"), prefs, app.to_alert_text(), email)
+                ch = prefs.get("notification_channel")
+                ok = notify_single(ch, prefs, app.to_alert_text(), email)
+                log_notif(email, ch or "none", "ok" if ok else "fail", app.to_alert_text()[:60])
 
                 gmail.users().messages().modify(userId="me", id=m["id"], body={"removeLabelIds": ["UNREAD"]}).execute()
                 count += 1
@@ -435,6 +600,7 @@ def scheduler_loop() -> None:
 def _get_dashboard_context(email: str) -> dict:
     prefs = get_user_prefs(email)
     sheet_url = rows = sheet_error = ""
+    tz_str = prefs.get("timezone", "Asia/Kolkata")
     try:
         sheet_url = ensure_sheet(email)
         svc = get_sheets_service(email)
@@ -445,19 +611,24 @@ def _get_dashboard_context(email: str) -> dict:
             rows = vals[1:][-20:]
     except Exception as e:
         sheet_error = str(e)
+    lr = localize_datetime(last_run.get(email), tz_str)
     return dict(
         authed=True, email=email, prefs=prefs,
         prefs_complete="notification_channel" in prefs,
         sheet_url=sheet_url, rows=rows,
         headers=SHEET_HEADERS[:5] + ["Stage", "Summary", "Location", "Salary", "Next Step", "Parser"],
-        last_run=last_run.get(email), last_count=last_count.get(email, 0),
+        last_run=lr, last_count=last_count.get(email, 0),
         last_error=last_error.get(email, ""), sheet_error=sheet_error,
         interval=POLL_INTERVAL_MINUTES,
         logs=log_buffer.get(email, [])[-30:],
+        notif_log=notif_log.get(email, [])[-50:][::-1],
         telegram_bot_username=TELEGRAM_BOT_USERNAME,
         has_telegram_bot=bool(TELEGRAM_BOT_TOKEN),
+        whatsapp_enabled=WHATSAPP_ENABLED,
         scheduler_alive=_scheduler_alive["running"],
         alert_message="",
+        timezone_options=TIMEZONE_OPTIONS,
+        user_timezone=tz_str,
     )
 
 
@@ -519,7 +690,10 @@ def save_prefs_route():
         return jsonify({"error": "Not authenticated"}), 401
 
     channel = request.form.get("channel", "none")
-    if channel not in ("whatsapp", "slack", "telegram", "discord", "whatsapp_cloud", "twilio_whatsapp", "pushover", "none"):
+    valid_channels = ["slack", "telegram", "discord", "none", "ntfy"]
+    if WHATSAPP_ENABLED:
+        valid_channels.append("whatsapp")
+    if channel not in valid_channels:
         return jsonify({"error": "Invalid channel"}), 400
 
     if channel == "none":
@@ -527,9 +701,7 @@ def save_prefs_route():
         log(email, "Notifications disabled")
         return jsonify({"status": "ok"})
 
-    set_user_pref(email, "notification_channel", channel)
-
-    if channel == "whatsapp":
+    if channel == "whatsapp" and WHATSAPP_ENABLED:
         phone = request.form.get("whatsapp_phone", "").strip()
         if not phone:
             return jsonify({"error": "Phone number required"}), 400
@@ -537,12 +709,10 @@ def save_prefs_route():
         apikey = request.form.get("whatsapp_apikey", "").strip()
         if apikey:
             set_user_pref(email, "whatsapp_apikey", apikey)
-    elif channel == "pushover":
-        user_key = request.form.get("pushover_user_key", "").strip()
-        if not user_key:
-            return jsonify({"error": "Pushover User Key required"}), 400
-        set_user_pref(email, "pushover_user_key", user_key)
-    elif channel == "slack":
+
+    set_user_pref(email, "notification_channel", channel)
+
+    if channel == "slack":
         webhook_url = request.form.get("slack_webhook_url", "").strip()
         if not webhook_url:
             return jsonify({"error": "Webhook URL required"}), 400
@@ -566,16 +736,11 @@ def save_prefs_route():
         set_user_pref(email, "telegram_username", username)
         if username != saved_username:
             set_user_pref(email, "telegram_chat_id", "")
-    elif channel == "whatsapp_cloud":
-        phone = request.form.get("whatsapp_cloud_phone", "").strip()
-        if not phone:
-            return jsonify({"error": "Phone number required"}), 400
-        set_user_pref(email, "whatsapp_cloud_phone", phone)
-    elif channel == "twilio_whatsapp":
-        phone = request.form.get("twilio_whatsapp_phone", "").strip()
-        if not phone:
-            return jsonify({"error": "Phone number required"}), 400
-        set_user_pref(email, "twilio_whatsapp_phone", phone)
+    elif channel == "ntfy":
+        topic = request.form.get("ntfy_topic", "").strip()
+        if not topic:
+            return jsonify({"error": "Topic name required"}), 400
+        set_user_pref(email, "ntfy_topic", topic)
 
     log(email, f"Notification channel set: {channel}")
     return jsonify({"status": "ok"})
@@ -593,7 +758,15 @@ def trigger():
         _alert = f"Poll failed: {e}"
         last_error[email] = str(e)
         log(email, _alert)
-    ctx = _get_dashboard_context(email)
+    try:
+        ctx = _get_dashboard_context(email)
+    except Exception as e:
+        ctx = dict(authed=True, email=email, prefs={}, prefs_complete=False,
+                   sheet_url="", rows=[], headers=[], last_run=None,
+                   last_count=0, last_error="", sheet_error=str(e),
+                   interval=POLL_INTERVAL_MINUTES, logs=[],
+            telegram_bot_username="", has_telegram_bot=False,
+                    scheduler_alive=False, alert_message=_alert, notif_log=[])
     ctx["alert_message"] = _alert
     return render_template("_dashboard.html", **ctx)
 
@@ -643,12 +816,8 @@ def change_channel():
     email = get_user_email()
     if not email:
         return redirect("/")
-    prefs = load_prefs()
-    if email in prefs and "notification_channel" in prefs[email]:
-        del prefs[email]["notification_channel"]
-        save_prefs(prefs)
-    log(email, "Channel reset — choose a new one")
-    return redirect("/")
+    prefs = get_user_prefs(email)
+    return render_template("change_channel.html", email=email, prefs=prefs, whatsapp_enabled=WHATSAPP_ENABLED)
 
 
 @app.route("/dedup-sheet")
@@ -662,30 +831,43 @@ def dedup_sheet_route():
         result = sheets.spreadsheets().values().get(spreadsheetId=sid, range="A:M").execute()
         rows = result.get("values", [])
         if not rows:
-            return jsonify({"status": "ok", "removed": 0})
-        seen = {}
-        keep = [rows[0]]
-        dup_count = 0
-        for row in rows[1:]:
-            mid = row[5] if len(row) > 5 else ""
-            if mid and mid in seen:
-                dup_count += 1
-                continue
-            if mid:
-                seen[mid] = True
-            keep.append(row)
-        if dup_count > 0:
-            sheets.spreadsheets().values().clear(spreadsheetId=sid, range="A2:M").execute()
-            if len(keep) > 1:
-                sheets.spreadsheets().values().update(
-                    spreadsheetId=sid, range="A2",
-                    valueInputOption="RAW",
-                    body={"values": keep[1:]}
-                ).execute()
-        log(email, f"Dedup: removed {dup_count} duplicates, kept {len(keep)-1} entries")
-        return jsonify({"status": "ok", "removed": dup_count, "kept": len(keep) - 1})
+            _alert = "Dedup: sheet is empty"
+        else:
+            seen = {}
+            keep = [rows[0]]
+            dup_count = 0
+            for row in rows[1:]:
+                mid = row[5] if len(row) > 5 else ""
+                if mid and mid in seen:
+                    dup_count += 1
+                    continue
+                if mid:
+                    seen[mid] = True
+                keep.append(row)
+            if dup_count > 0:
+                sheets.spreadsheets().values().clear(spreadsheetId=sid, range="A2:M").execute()
+                if len(keep) > 1:
+                    sheets.spreadsheets().values().update(
+                        spreadsheetId=sid, range="A2",
+                        valueInputOption="RAW",
+                        body={"values": keep[1:]}
+                    ).execute()
+            _alert = f"Dedup: removed {dup_count} duplicates, kept {len(keep)-1} entries"
+        log(email, _alert)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        _alert = f"Dedup failed: {e}"
+        log(email, _alert)
+    try:
+        ctx = _get_dashboard_context(email)
+    except Exception as e:
+        ctx = dict(authed=True, email=email, prefs={}, prefs_complete=False,
+                   sheet_url="", rows=[], headers=[], last_run=None,
+                   last_count=0, last_error="", sheet_error=str(e),
+                   interval=POLL_INTERVAL_MINUTES, logs=[],
+                   telegram_bot_username="", has_telegram_bot=False,
+                    scheduler_alive=False, alert_message=_alert, notif_log=[])
+    ctx["alert_message"] = _alert
+    return render_template("_dashboard.html", **ctx)
 
 @app.route("/format-sheet")
 def format_sheet_route():
@@ -693,7 +875,19 @@ def format_sheet_route():
     if not email:
         return jsonify({"error": "Not authenticated"}), 401
     ok = format_sheet(email)
-    return jsonify({"status": "ok" if ok else "error"})
+    _alert = "Sheet formatted!" if ok else "Sheet format failed"
+    log(email, _alert)
+    try:
+        ctx = _get_dashboard_context(email)
+    except Exception as e:
+        ctx = dict(authed=True, email=email, prefs={}, prefs_complete=False,
+                   sheet_url="", rows=[], headers=[], last_run=None,
+                   last_count=0, last_error="", sheet_error=str(e),
+                   interval=POLL_INTERVAL_MINUTES, logs=[],
+                   telegram_bot_username="", has_telegram_bot=False,
+                    scheduler_alive=False, alert_message=_alert, notif_log=[])
+    ctx["alert_message"] = _alert
+    return render_template("_dashboard.html", **ctx)
 
 @app.route("/send-test-email")
 def send_test_email_route():
@@ -701,13 +895,19 @@ def send_test_email_route():
     if not email:
         return jsonify({"error": "Not authenticated"}), 401
     try:
-        send_test_email(email)
-        log(email, "Test email sent")
-        _alert = "Test email sent to your Gmail inbox!"
+        _alert = send_test_email(email)
     except Exception as e:
         _alert = f"Test email failed: {e}"
         log(email, _alert)
-    ctx = _get_dashboard_context(email)
+    try:
+        ctx = _get_dashboard_context(email)
+    except Exception as e:
+        ctx = dict(authed=True, email=email, prefs={}, prefs_complete=False,
+                   sheet_url="", rows=[], headers=[], last_run=None,
+                   last_count=0, last_error="", sheet_error=str(e),
+                   interval=POLL_INTERVAL_MINUTES, logs=[],
+                   telegram_bot_username="", has_telegram_bot=False,
+                    scheduler_alive=False, alert_message=_alert, notif_log=[])
     ctx["alert_message"] = _alert
     return render_template("_dashboard.html", **ctx)
 
@@ -771,25 +971,38 @@ def test_notification():
     email = get_user_email()
     if not email:
         return jsonify({"error": "Not authenticated"}), 401
+    wants_json = request.args.get("format") == "json"
     prefs = get_user_prefs(email)
     channel = prefs.get("notification_channel")
-    if not channel or channel == "none":
-        msg = "No notification channel configured"
-        log(email, msg)
-        return jsonify({"status": "error", "error": msg}), 400
     msg = "Test notification — your Offer Tracker is working!"
+    ok = True
+    if not channel or channel == "none":
+        _alert = "No notification channel configured"
+        log(email, _alert)
+        ok = False
+    else:
+        try:
+            ok = notify_single(channel, prefs, msg, email)
+            log_notif(email, channel, "ok" if ok else "fail", msg)
+            _alert = f"Test {channel} notification sent!" if ok else f"Test {channel} notification failed — missing credentials (chat_id, webhook, etc.)"
+            log(email, _alert)
+        except Exception as e:
+            _alert = f"Test notification failed: {e}"
+            log(email, _alert)
+            ok = False
+    if wants_json:
+        return jsonify({"status": "ok" if ok else "error", "message": _alert})
     try:
-        notify_single(channel, prefs, msg, email)
-        _alert = f"Test {channel} notification sent!"
-        log(email, _alert)
-    except Exception as e:
-        _alert = f"Test notification failed: {e}"
-        log(email, _alert)
-    if request.headers.get("HX-Request"):
         ctx = _get_dashboard_context(email)
-        ctx["alert_message"] = _alert
-        return render_template("_dashboard.html", **ctx)
-    return jsonify({"status": _alert.startswith("Test") and "ok" or "error", "message": _alert})
+    except Exception as e:
+        ctx = dict(authed=True, email=email, prefs={}, prefs_complete=False,
+                   sheet_url="", rows=[], headers=[], last_run=None,
+                   last_count=0, last_error="", sheet_error=str(e),
+                   interval=POLL_INTERVAL_MINUTES, logs=[],
+                   telegram_bot_username="", has_telegram_bot=False,
+                    scheduler_alive=False, alert_message=_alert, notif_log=[])
+    ctx["alert_message"] = _alert
+    return render_template("_dashboard.html", **ctx)
 
 
 @app.route("/save-whatsapp-apikey", methods=["POST"])
@@ -805,16 +1018,19 @@ def save_whatsapp_apikey():
     return jsonify({"status": "ok"})
 
 
-@app.route("/save-pushover-key", methods=["POST"])
-def save_pushover_key():
+
+
+@app.route("/save-timezone", methods=["POST"])
+def save_timezone():
     email = get_user_email()
     if not email:
         return jsonify({"error": "Not authenticated"}), 401
-    key = request.form.get("pushover_user_key", "").strip()
-    if not key:
-        return jsonify({"error": "User Key required"}), 400
-    set_user_pref(email, "pushover_user_key", key)
-    log(email, "Pushover user key saved")
+    tz = request.form.get("timezone", "").strip()
+    valid = [t[0] for t in TIMEZONE_OPTIONS]
+    if tz not in valid:
+        return jsonify({"error": f"Invalid timezone. Choose from: {', '.join(valid)}"}), 400
+    set_user_pref(email, "timezone", tz)
+    log(email, f"Timezone set to {tz}")
     return jsonify({"status": "ok"})
 
 
@@ -906,6 +1122,118 @@ def upload_credentials():
     CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
     f.save(str(CREDENTIALS_PATH))
     return jsonify({"status": "ok"})
+
+
+def _is_msg_id(v):
+    return bool(v and str(v).startswith("<"))
+
+
+@app.route("/fix-sheet")
+def fix_sheet():
+    email = get_user_email()
+    if not email:
+        return jsonify({"error": "Not authenticated"}), 401
+    try:
+        sid = _find_or_create_sheet(email)
+        svc = get_sheets_service(email)
+        data = svc.spreadsheets().values().get(spreadsheetId=sid, range="A:M").execute()
+        vals = data.get("values", [])
+        if len(vals) < 2:
+            return _dash_alert(email, "No data rows to fix")
+
+        fixed = 0
+        for i, row in enumerate(vals[1:], 2):
+            padded = row + [""] * (13 - len(row))
+            logger.info(f"Row {i}: len={len(row)} {[repr(v[:20]) for v in padded[:10]]}")
+
+            if len(row) < 2:
+                continue
+            company = (row[0] or "").strip()
+
+            # ── Case 1: Right-shifted — company empty, data in col L-M ──
+            if len(row) >= 12 and not company and (row[11] or "").strip() and (row[12] or "").strip():
+                corrected = [""] * 13
+                corrected[0] = row[11].strip()
+                corrected[1] = row[12].strip()
+                corrected[5] = ""
+                corrected[6] = "Yes"
+                svc.spreadsheets().values().update(
+                    spreadsheetId=sid, range=f"A{i}:M{i}",
+                    valueInputOption="RAW",
+                    body={"values": [corrected]}
+                ).execute()
+                fixed += 1
+                logger.info(f"Fixed right-shift row {i}: {corrected[0][:30]} / {corrected[1][:30]}")
+
+            # ── Case 2: 13-value rows with Stage column holding a message_id ──
+            elif len(row) >= 13 and company and _is_msg_id(padded[7]) and not _is_msg_id(padded[5]):
+                corrected = list(padded)
+                corrected[5] = padded[7]
+                corrected[7] = padded[5]
+                svc.spreadsheets().values().update(
+                    spreadsheetId=sid, range=f"A{i}:M{i}",
+                    valueInputOption="RAW",
+                    body={"values": [corrected]}
+                ).execute()
+                fixed += 1
+                logger.info(f"Fixed shifted-13 row {i}: {company} stage={corrected[7][:20]}")
+
+            # ── Case 3: <13 value rows — detect and fix if misaligned ──
+            elif len(row) < 13 and company:
+                corrected = [""] * 13
+                corrected[0] = row[0] or ""
+                if len(row) > 1:
+                    corrected[1] = row[1] or ""
+                if len(row) > 2:
+                    corrected[2] = row[2] or ""
+                if len(row) > 3:
+                    corrected[3] = row[3] or ""
+                if len(row) > 4:
+                    corrected[4] = row[4] or ""
+
+                if len(row) >= 8:
+                    msg_at_7 = _is_msg_id(row[7])
+                    msg_at_5 = _is_msg_id(row[5])
+
+                    if msg_at_7 and not msg_at_5:
+                        # Old format: message_id at col H (7), email_type at col F (5)
+                        corrected[5] = row[7] or ""
+                        corrected[7] = row[5] or ""
+                    else:
+                        # Already correctly aligned
+                        corrected[5] = row[5] or ""
+                        corrected[7] = row[7] or ""
+                    corrected[6] = "Yes"
+                    corrected[8] = ""
+
+                if len(row) >= 10:
+                    corrected[9] = row[8] or ""
+                    corrected[12] = row[9] or ""
+
+                svc.spreadsheets().values().update(
+                    spreadsheetId=sid, range=f"A{i}:M{i}",
+                    valueInputOption="RAW",
+                    body={"values": [corrected]}
+                ).execute()
+                fixed += 1
+                logger.info(f"Fixed row {i}: {company} stage={corrected[7][:20]} msgid={corrected[5][:20]}")
+
+        msg = f"Fixed {fixed} misaligned rows. Reload to see changes." if fixed else "No misaligned rows found."
+        return _dash_alert(email, msg)
+    except Exception as e:
+        logger.error(f"Fix-sheet error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return _dash_alert(email, f"Fix failed: {e}")
+
+
+def _dash_alert(email: str, msg: str):
+    try:
+        ctx = _get_dashboard_context(email)
+    except Exception as e:
+        ctx = {}
+    ctx["alert_message"] = msg
+    return render_template("_dashboard.html", **ctx)
 
 
 def redirect_uri() -> str:

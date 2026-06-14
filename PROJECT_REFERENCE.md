@@ -703,7 +703,62 @@ This project was built across 13 AI coding sessions:
 
 ---
 
-## Appendix A: Full Gmail Query
+## Appendix D: Architectural Patterns
+
+The codebase uses several established patterns:
+
+| Pattern | Implementation | Files |
+|---------|--------------|-------|
+| **Pipeline** | Sequential: poll → parse → dedup → sheets → notify | `webui.py:run_poll()`, `src/main.py:run_once()` |
+| **Strategy** | AI providers (Gemini/Groq/NVIDIA) with unified interface + regex fallback | `src/ai.py:parse_email_with_ai()` |
+| **Repository** | `SheetsHelper` abstracts Google Sheets as a data store | `src/sheets_writer.py` |
+| **Observer/Polling** | Scheduler polls Gmail at intervals; Telegram verification polls `getUpdates` | `webui.py:scheduler_loop()`, JS auto-poll |
+| **Factory** | `_call_gemini`, `_call_groq`, `_call_nvidia` are factory-like dispatch | `src/ai.py` |
+| **Background Worker** | Daemon thread runs `scheduler_loop` alongside Flask | `webui.py:905` |
+
+## Appendix E: Error Handling & Resilience
+
+| Layer | Error Source | Handling |
+|-------|-------------|----------|
+| Config | Missing `credentials.json` | `validate()` returns False, cycle skipped |
+| Gmail | Network failure, API quota | Caught → returns `[]`, logged |
+| Gmail | Mark-as-read failure | Logged as warning, non-fatal |
+| Parser | Unparseable email | Returns `None`, message marked read |
+| AI | Network/API/JSON decode failure | Returns `None`, falls through to regex |
+| Sheets | Sheet not found | Auto-created in `ensure_sheet()` |
+| Sheets | Append failure | Caught in process loop, logged as error |
+| Duplicate | Refresh failure | Logged as warning, cache remains empty |
+| Notifications | API failures | All caught individually, logged as warnings, non-blocking |
+| OAuth | Token refresh failure | Returns `None`, user must re-auth |
+| Scheduler | General exception | Caught, logged with traceback, 60s wait, retry |
+
+## Appendix F: Security Considerations
+
+| Issue | Severity | Notes |
+|-------|----------|-------|
+| OAuth client_secret in plaintext | Critical | `credentials/credentials.json` — gitignored but present in working tree |
+| No token rotation | Medium | Token files are long-lived; refresh tokens never revoked |
+| Session secret per-process | Low | `app.secret_key = os.urandom(24).hex()` — resets on restart |
+| No HTTPS enforcement in app | Medium | `redirect_uri()` trusts `X-Forwarded-Proto` header |
+| No rate limiting | Medium | `/trigger`, `/cron/secret` have no rate limits |
+| No CSRF protection | Low | Flask forms lack CSRF tokens |
+
+## Appendix G: Test Coverage Gaps
+
+| Component | Tests | Missing |
+|-----------|-------|---------|
+| `src/poller.py` | 0 | No mock Gmail API tests |
+| `src/sheets_writer.py` | 0 | No gspread mock tests |
+| `src/duplicate_checker.py` | 0 | No unit tests |
+| `src/notifier.py` | 0 | No HTTP mock tests for 7 channels |
+| `src/ai.py` | 0 | No provider mock tests (Gemini/Groq/NVIDIA) |
+| `src/main.py` | 0 | No integration tests |
+| `src/scheduler.py` | 0 | No signal handling tests |
+| `webui.py` | 0 | No Flask client tests |
+
+---
+
+## Appendix H: Full Gmail Query
 
 ```
 subject:"application received" OR
@@ -713,7 +768,7 @@ subject:"offer letter" OR
 subject:"we received your application"
 ```
 
-## Appendix B: Google Sheet Columns
+## Appendix I: Google Sheet Columns
 
 | Column | Header | Source |
 |--------|--------|--------|
@@ -731,7 +786,7 @@ subject:"we received your application"
 | L | Next Step | AI classified |
 | M | Parser | Provider name ("NVIDIA"/"Gemini"/"Groq"/"Regex") |
 
-## Appendix C: Dependencies
+## Appendix J: Dependencies
 
 ```
 flask>=3.0
@@ -746,7 +801,7 @@ openpyxl>=3.0
 pytest
 ```
 
-## Appendix D: Key Design Decisions
+## Appendix K: Key Design Decisions
 
 | Decision | Rationale |
 |----------|-----------|

@@ -170,11 +170,15 @@ button.htmx-request, a.htmx-request { opacity: 0.6; pointer-events: none; }
 .log-box { background: #1b1c1c; color: #38bdf8; padding: 12px 14px; border-radius: 8px; font-size: 0.75rem; max-height: 160px; overflow-y: auto; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; line-height: 1.5; }
 .log-box div { padding: 2px 0; }
 .dark .log-box { background: #0d1117; }
-.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.table-wrap table { min-width: 540px; }
-.table-wrap th { font-family: Geist, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-on-surface-variant); text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--color-outline-variant); }
-.table-wrap td { padding: 10px 8px; border-bottom: 1px solid var(--color-outline-variant); font-size: 14px; }
-.table-wrap tbody tr:hover { background: var(--color-surface-container-low); }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; }
+.table-wrap::after { content: ''; position: sticky; right: 0; width: 32px; min-height: 100%; pointer-events: none; background: linear-gradient(to right, transparent, var(--color-surface-container-lowest)); }
+.table-wrap table { min-width: 900px; border-collapse: collapse; }
+.table-wrap thead { position: sticky; top: 0; z-index: 1; }
+.table-wrap thead th { background: var(--color-surface-container-lowest); font-family: Geist, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-on-surface-variant); text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--color-outline-variant); white-space: nowrap; }
+.table-wrap td { padding: 12px 8px; border-bottom: 1px solid var(--color-outline-variant); font-size: 14px; vertical-align: middle; }
+.table-wrap tbody tr { background: var(--color-surface-container-lowest); }
+.table-wrap tbody tr:nth-child(even) { background: var(--color-surface-container-low); }
+.table-wrap tbody tr:hover { background: var(--color-surface-container-high); }
 .hide-mobile { display: table-cell; }
 @media (max-width: 600px) { .hide-mobile { display: none; } }
 .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
@@ -268,98 +272,11 @@ button.htmx-request, a.htmx-request { opacity: 0.6; pointer-events: none; }
         <p class="text-body-sm text-on-surface-variant">Signed in as <strong>{{ email }}</strong></p>
       </div>
     </div>
-    <p class="font-label-caps text-label-caps text-on-surface-variant mb-3">Pick a notification channel</p>
-    <form class="space-y-4" id="prefsForm">
-      <div class="grid grid-cols-2 gap-2">
-        {% macro channel_btn(name, icon, label) %}
-        <label class="flex items-center gap-2 p-3 rounded-xl border border-outline-variant cursor-pointer hover:border-secondary transition-colors tap-highlight-transparent has-[:checked]:border-secondary has-[:checked]:bg-secondary/5" onclick="selectChannel(this)">
-          <input type="radio" name="channel" value="{{ name }}" class="hidden">
-          <span class="material-symbols-outlined text-[18px] text-on-surface-variant">{{ icon }}</span>
-          <span class="font-body-sm text-sm">{{ label }}</span>
-        </label>
-        {% endmacro %}
-        {{ channel_btn('telegram', 'send', 'Telegram') }}
-        {{ channel_btn('slack', 'forum', 'Slack') }}
-        {{ channel_btn('whatsapp', 'chat', 'WhatsApp (CallMeBot)') }}
-        {{ channel_btn('discord', 'headset_mic', 'Discord') }}
-        {{ channel_btn('whatsapp_cloud', 'cloud', 'WhatsApp Cloud') }}
-        {{ channel_btn('twilio_whatsapp', 'call', 'Twilio WhatsApp') }}
-        {{ channel_btn('pushover', 'notifications_active', 'Pushover') }}
-        <label class="flex items-center gap-2 p-3 rounded-xl border border-outline-variant cursor-pointer hover:border-secondary transition-colors tap-highlight-transparent has-[:checked]:border-secondary has-[:checked]:bg-secondary/5" onclick="selectChannel(this)">
-          <input type="radio" name="channel" value="none" checked class="hidden">
-          <span class="material-symbols-outlined text-[18px] text-on-surface-variant">block</span>
-          <span class="font-body-sm text-sm">None</span>
-        </label>
-      </div>
-
-      <div class="channel-fields hidden" id="telegram-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your Telegram @username</label>
-        <input type="text" name="telegram_username" placeholder="@username" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-        <p class="text-xs text-on-surface-variant mt-1">After saving, message the bot to connect.</p>
-      </div>
-
-      <div class="channel-fields hidden" id="slack-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Slack Webhook URL</label>
-        <input type="text" name="slack_webhook_url" id="slackUrlInput" placeholder="https://hooks.slack.com/services/..." class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary" oninput="validateSlackUrl()">
-        <span id="slackUrlStatus" class="text-xs"></span>
-        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
-          <b class="block mb-1">Get your webhook:</b>
-          <ol class="ml-4 space-y-1">
-            <li><a href="https://api.slack.com/apps" target="_blank" class="text-secondary">api.slack.com/apps</a> → Create New App → From scratch</li>
-            <li>Name it "Offer Tracker" → pick workspace</li>
-            <li>Incoming Webhooks → toggle On → Add New Webhook</li>
-            <li>Pick a <b>public</b> channel → Allow → copy URL</li>
-          </ol>
-          <div class="mt-2 p-2 rounded-lg bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"><b>No channels?</b> Create a public channel first.</div>
-        </div>
-      </div>
-
-      <div class="channel-fields hidden" id="whatsapp-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your Phone Number</label>
-        <input type="text" name="whatsapp_phone" placeholder="+919876543210" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-      </div>
-
-      <div class="channel-fields hidden" id="discord-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Discord Webhook URL</label>
-        <input type="text" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
-          <b class="block mb-1">Get webhook:</b>
-          <ol class="ml-4 space-y-1">
-            <li>Discord → Server Settings → Integrations</li>
-            <li>Create Webhook → name "Offer Tracker"</li>
-            <li>Copy Webhook URL</li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="channel-fields hidden" id="whatsapp_cloud-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your WhatsApp Number</label>
-        <input type="text" name="whatsapp_cloud_phone" placeholder="+919876543210" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
-          <b class="block mb-1">Admin setup required on .env:</b>
-          <code class="block">WHATSAPP_CLOUD_PHONE_NUMBER_ID</code>
-          <code class="block">WHATSAPP_CLOUD_ACCESS_TOKEN</code>
-        </div>
-      </div>
-
-      <div class="channel-fields hidden" id="twilio_whatsapp-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Your WhatsApp Number</label>
-        <input type="text" name="twilio_whatsapp_phone" placeholder="+919876543210" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-        <div class="bg-surface-container rounded-lg p-3 text-xs text-on-surface-variant mt-2">
-          <b class="block mb-1">Admin setup required on .env:</b>
-          <code class="block">TWILIO_ACCOUNT_SID</code>
-          <code class="block">TWILIO_AUTH_TOKEN</code>
-        </div>
-      </div>
-
-      <div class="channel-fields hidden" id="pushover-fields">
-        <label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Pushover User Key</label>
-        <input type="text" name="pushover_user_key" placeholder="uXXXXXXXXXXXXXXXXX" class="w-full h-touch-target px-3 rounded-xl border border-outline-variant text-sm bg-surface focus:outline-none focus:border-secondary">
-      </div>
-
-      <button type="submit" class="w-full h-touch-target bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps transition-transform active:scale-[0.98]">Save & Continue</button>
-    </form>
-    <div id="prefsStatus" class="mt-3 text-sm"></div>
+    <p class="font-body-sm text-body-sm text-on-surface-variant mb-4">Configure your notification channel on the dedicated settings page.</p>
+    <a href="/change-channel" class="inline-flex items-center gap-2 h-touch-target px-6 bg-secondary text-on-secondary rounded-xl font-label-caps text-label-caps no-underline hover:no-underline transition-transform active:scale-[0.98]">
+      <span class="material-symbols-outlined text-[18px]">notifications</span>
+      Set up notifications
+    </a>
   </div>
 </div>
 
@@ -418,37 +335,6 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
   } catch(e) {}
 })();
 
-function selectChannel(el) {
-  document.querySelectorAll('.channel-fields').forEach(f => f.classList.add('hidden'));
-  document.querySelectorAll('.grid label').forEach(l => l.classList.remove('border-secondary', 'bg-secondary/5'));
-  el.classList.add('border-secondary', 'bg-secondary/5');
-  el.querySelector('input[type="radio"]').checked = true;
-  const fields = document.getElementById(el.querySelector('input').value + '-fields');
-  if (fields) fields.classList.remove('hidden');
-}
-
-function validateSlackUrl() {
-  const el = document.getElementById('slackUrlInput');
-  const st = document.getElementById('slackUrlStatus');
-  if (!el || !st) return;
-  const v = el.value.trim();
-  if (!v) { st.textContent = ''; return; }
-  if (v.startsWith('https://hooks.slack.com/')) { st.innerHTML = '<span style="color:var(--color-success)">Valid URL</span>'; }
-  else { st.innerHTML = '<span style="color:var(--color-error)">Must start with https://hooks.slack.com/</span>'; }
-}
-
-document.getElementById('prefsForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const btn = this.querySelector('button[type="submit"]'); const st = document.getElementById('prefsStatus');
-  btn.disabled = true; btn.textContent = 'Saving...';
-  try {
-    const fd = new FormData(this);
-    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
-    const d = await r.json();
-    if (d.status==='ok') { st.innerHTML='Saved! Loading dashboard...'; location.reload(); }
-    else { st.innerHTML='Error: '+(d.error||'Failed'); btn.disabled=false; btn.textContent='Save & Continue'; }
-  } catch(e) { st.innerHTML='Error'; btn.disabled=false; btn.textContent='Save & Continue'; }
-});
 {% endif %}
 
 function toggleTheme() {
@@ -484,7 +370,7 @@ function showToast(msg) {
 
 async function testNotification() {
   try {
-    const r = await fetch('/test-notification', { method: 'POST' });
+    const r = await fetch('/test-notification?format=json', { method: 'POST', credentials: 'include' });
     const d = await r.json();
     if (d.status === 'ok') showToast(d.message || 'Test notification sent!');
     else showToast('Error: ' + (d.message || d.error || 'Failed'));
@@ -559,44 +445,14 @@ async function saveDiscordWebhook(e) {
   } catch(e) { showToast('Error'); }
 }
 
-async function saveWhatsAppCloud(e) {
+async function saveTimezone(e) {
   e.preventDefault();
-  const input = document.getElementById('whatsappCloudPhone');
-  const phone = input.value.trim();
-  if (!phone) return;
+  const tz = document.getElementById('timezoneSelect').value;
   try {
-    const fd = new FormData(); fd.append('channel', 'whatsapp_cloud'); fd.append('whatsapp_cloud_phone', phone);
-    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
+    const fd = new FormData(); fd.append('timezone', tz);
+    const r = await fetch('/save-timezone', { method:'POST', body:new URLSearchParams(fd) });
     const d = await r.json();
-    if (d.status==='ok') { showToast('WhatsApp Cloud connected!'); setTimeout(() => location.reload(), 1200); }
-    else { showToast('Error: '+(d.error||'Failed')); }
-  } catch(e) { showToast('Error'); }
-}
-
-async function saveTwilioWhatsApp(e) {
-  e.preventDefault();
-  const input = document.getElementById('twilioWhatsappPhone');
-  const phone = input.value.trim();
-  if (!phone) return;
-  try {
-    const fd = new FormData(); fd.append('channel', 'twilio_whatsapp'); fd.append('twilio_whatsapp_phone', phone);
-    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
-    const d = await r.json();
-    if (d.status==='ok') { showToast('Twilio WhatsApp connected!'); setTimeout(() => location.reload(), 1200); }
-    else { showToast('Error: '+(d.error||'Failed')); }
-  } catch(e) { showToast('Error'); }
-}
-
-async function savePushoverKey(e) {
-  e.preventDefault();
-  const input = document.getElementById('pushoverUserKey');
-  const key = input.value.trim();
-  if (!key) return;
-  try {
-    const fd = new FormData(); fd.append('channel', 'pushover'); fd.append('pushover_user_key', key);
-    const r = await fetch('/save-prefs', { method:'POST', body:new URLSearchParams(fd) });
-    const d = await r.json();
-    if (d.status==='ok') { showToast('Pushover connected!'); setTimeout(() => location.reload(), 1200); }
+    if (d.status==='ok') { showToast('Timezone saved!'); setTimeout(() => location.reload(), 1200); }
     else { showToast('Error: '+(d.error||'Failed')); }
   } catch(e) { showToast('Error'); }
 }
@@ -667,15 +523,9 @@ function copyCronUrl2() {
   {% elif prefs.notification_channel == 'whatsapp' %}
   const apikey = '{{ prefs.whatsapp_apikey }}';
   el.innerHTML = apikey ? '<span class="status-dot green"></span>WhatsApp' : '<span class="status-dot gray"></span>WhatsApp (not activated)';
-  {% elif prefs.notification_channel == 'whatsapp_cloud' %}
-  const setup = '{{ prefs.whatsapp_cloud_setup }}';
-  el.innerHTML = setup ? '<span class="status-dot green"></span>WhatsApp Cloud' : '<span class="status-dot gray"></span>WhatsApp Cloud (not set)';
-  {% elif prefs.notification_channel == 'twilio_whatsapp' %}
-  const twilioPhone = '{{ prefs.twilio_whatsapp_phone }}';
-  el.innerHTML = twilioPhone ? '<span class="status-dot green"></span>Twilio WhatsApp' : '<span class="status-dot gray"></span>Twilio WhatsApp (not set)';
-  {% elif prefs.notification_channel == 'pushover' %}
-  const pushoverKey = '{{ prefs.pushover_user_key }}';
-  el.innerHTML = pushoverKey ? '<span class="status-dot green"></span>Pushover' : '<span class="status-dot gray"></span>Pushover (not set)';
+  {% elif prefs.notification_channel == 'ntfy' %}
+  const ntfyTopic = '{{ prefs.ntfy_topic }}';
+  el.innerHTML = ntfyTopic ? '<span class="status-dot green"></span>ntfy.sh' : '<span class="status-dot gray"></span>ntfy.sh (not set)';
   {% else %}
   el.innerHTML = '<span class="status-dot gray"></span>None';
   {% endif %}
@@ -710,6 +560,37 @@ document.body.addEventListener('htmx:beforeSwap', function() {
   const active = document.querySelector('.nav-tab.text-secondary');
   if (active) document.body.dataset.activeTab = active.id.replace('-btn', '');
 });
+
+(function initAlertDismiss() {
+  function handleBanner() {
+    var banner = document.getElementById('alert-banner');
+    if (!banner || banner._autoDismissStarted) return;
+    banner._autoDismissStarted = true;
+    var msg = banner.getAttribute('data-msg') || '';
+    var icon = banner.getAttribute('data-icon') || 'check_circle';
+    var st = banner.getAttribute('data-status') || 'ok';
+    setTimeout(function(){
+      banner.style.opacity = '0';
+      banner.style.transform = 'translateY(-8px)';
+      setTimeout(function(){
+        banner.remove();
+        var log = document.getElementById('notif-log-list');
+        var empty = document.getElementById('notif-log-empty');
+        if (log) {
+          if (empty) empty.style.display = 'none';
+          var entry = document.createElement('div');
+          entry.className = 'flex items-start gap-3 p-3 rounded-xl ' + (st === 'ok' ? 'bg-success/5 border-l-success' : 'bg-error-container/10 border-l-error') + ' border-l-4';
+          var now = new Date();
+          var ts = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+          entry.innerHTML = '<span class="material-symbols-outlined text-[18px] mt-0.5 ' + (st === 'ok' ? 'text-success' : 'text-error') + '">' + icon + '</span><div class="flex-1 min-w-0"><div class="flex items-center gap-2 text-sm"><span class="font-medium">Dashboard</span><span class="text-xs text-on-surface-variant">' + ts + '</span><span class="badge text-xs px-1.5 py-0.5 rounded ' + (st === 'ok' ? 'bg-success/20 text-success' : 'bg-error-container text-on-error-container') + '">' + (st === 'ok' ? 'Sent' : 'Failed') + '</span></div><p class="text-xs text-on-surface-variant mt-0.5 truncate">' + msg + '</p></div>';
+          log.prepend(entry);
+        }
+      }, 500);
+    }, 3000);
+  }
+  handleBanner();
+  setInterval(handleBanner, 500);
+})();
 
 switchTab('home');
 {% endif %}

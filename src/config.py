@@ -18,6 +18,7 @@ SHEET_NAME = os.getenv("SHEET_NAME", "Job Application Tracker")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")  # optional fallback for users without their own
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "GotJobAlert_bot")
+TELEGRAM_RELAY_URL = os.getenv("TELEGRAM_RELAY_URL", "")  # e.g. https://xxx.lhrtunnel.link/relay
 
 # ── AI / LLM Provider (for email parsing, categorization, summarization) ──
 AI_PROVIDER = os.getenv("AI_PROVIDER", "none")  # gemini | groq | nvidia | none
@@ -28,6 +29,8 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 PUSHOVER_TOKEN = os.getenv("PUSHOVER_TOKEN", "")
 PUSHOVER_USER = os.getenv("PUSHOVER_USER", "")
+
+WHATSAPP_ENABLED = os.getenv("WHATSAPP_ENABLED", "").lower() == "true"
 
 CRON_SECRET = os.getenv("CRON_SECRET", "")
 

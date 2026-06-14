@@ -21,6 +21,7 @@
 8. [AI Migration & Sheet Formatting (Session 10)](#7b-ai-migration--sheet-formatting-session-10)
 9. [Discord, Pipeline & Indian Market (Session 12)](#7c-session-12--discord-pipeline--indian-market-tuning-jun-12)
 10. [Polish & Reliability + Test Notification Fix (Session 11)](#7d-polish--reliability-session-11)
+11. [Telegram Relay, ntfy.sh & UI Polish (Session 14)](#7e-telegram-relay-ntfysh--ui-polish-session-14)
 
 **Part II — Technical Reference**
 8. [Architecture (Final)](#8-architecture-final)
@@ -429,6 +430,79 @@ Expanded the email type system from 5 to 8 pipeline stages:
 | `webui.py` | ~915 | `normalize_email()`, updated `get_user_email()`, `get_user_prefs()`, `set_user_pref()`, `get_creds()`, `save_prefs_route`, callback redirect, `@app.after_request` Cache-Control handler, `notify_single()` replaces hand-rolled dispatch, `alert_message` feedback on all action routes |
 | `templates/index.html` | ~780 | Restored Material Symbols CDN, CSS classes, font-variation-settings JS; replaced briefcase→description; restored theme toggle ligatures; `testNotification()` JS handles `d.message` + `d.error` for JSON responses |
 | `templates/_dashboard.html` | ~335 | "Notifications disabled" card for `none` channel in Alerts tab; `alert_message` banner at top of dashboard |
+
+## 7e. Session 14 — Telegram Relay, ntfy.sh & UI Polish (Jun 14)
+
+**Date:** June 14, 2026
+
+### Cloudflare Telegram Relay
+
+PythonAnywhere free tier blocks `api.telegram.org`. Fixed via a permanent Cloudflare Worker relay:
+- Worker source: `telegram_worker.js` — accepts `POST /relay` with `{chat_id, text, parse_mode}`, proxies to Telegram Bot API
+- URL: `https://telegram-relay.sachin-gotjobalert.workers.dev/relay`
+- `notifier.py` updated: `_TELEGRAM_RELAY_URL` points to worker instead of direct API
+
+### ntfy.sh Replaces Pushover
+
+Pushover requires a one-time $4.99 purchase per device. Replaced with ntfy.sh (free, open source, no account needed):
+- `_send_ntfy()` added to `notifier.py` — posts to `https://ntfy.sh/{topic}`
+- `notify_single()` handles `ntfy` case
+- `change_channel.html`: ntfy card with step-by-step setup instructions
+- `send_pushover()` kept in `notifier.py` for backward compatibility
+
+### WhatsApp Feature-Flagged Off
+
+WhatsApp CallMeBot is dead for new users (bot full). Added `WHATSAPP_ENABLED` flag:
+- `config.py`: reads `WHATSAPP_ENABLED` from env, defaults to `False`
+- UI: WhatsApp cards hidden when flag is off
+- WhatsApp Cloud API / Twilio WhatsApp removed from UI (no server-side env vars either)
+
+### Timezone Support
+
+Dates now display in user-configurable timezone (default IST):
+- `localize_datetime()` using `zoneinfo.ZoneInfo`
+- `/save-timezone` route + selector in Settings tab
+- Defaults to `Asia/Kolkata`
+
+### Notification Log Persistence
+
+Previously `notif_log` was in-memory only — lost on every PythonAnywhere restart:
+- Added `load_notif_log()` and `save_notif_log()` functions
+- `NOTIF_LOG_PATH` constant (`user_notif_log.json`)
+- Loaded on startup, saved after each notification
+- Keeps last 100 entries per user
+
+### Alert Banner Auto-Dismiss
+
+**Root cause:** Every button uses `outerHTML=h` to update the dashboard. Browsers do **not** execute `<script>` tags parsed from `outerHTML`/`innerHTML`. The inline script in `_dashboard.html` was silently discarded, so the banner never auto-dismissed.
+
+**Fix:** Replaced inline `<script>` with a polling loop in `index.html`:
+- `setInterval(handleBanner, 500)` checks for `#alert-banner` every 500ms
+- On detection: 3s timer → fade out (opacity + translateY) → remove → prepend "Dashboard" entry to `#notif-log-list`
+- Works with any DOM update mechanism (initial load, `outerHTML`, `innerHTML`, HTMX)
+- `#notif-log-list` container always rendered even when empty; empty state (`#notif-log-empty`) hidden via JS on first entry
+
+### File Structure Changes
+
+| File | Key Changes |
+|---|---|
+| `webui.py` | `load_notif_log()`, `save_notif_log()`, `NOTIF_LOG_PATH`, `log_notif()` now saves to JSON; `/save-timezone` route; removed dead channel routes/save endpoints |
+| `templates/_dashboard.html` | Removed inline `<script>`; added `data-msg`/`data-icon`/`data-status` attributes to `#alert-banner`; `#notif-log-list` always rendered; `#notif-log-empty` separate div |
+| `templates/index.html` | Added `initAlertDismiss()` polling loop; added `switchTab('alerts')` imported from global scope |
+| `templates/change_channel.html` | Rebuilt with Telegram/ntfy/Slack/Discord cards; step-by-step setup instructions; pre-filled inputs from prefs |
+| `src/notifier.py` | `_TELEGRAM_RELAY_URL` points to Cloudflare Worker; `_send_ntfy()` added; WhatsApp channels guarded by `WHATSAPP_ENABLED`; `ntfy` case in `notify_single()` |
+| `src/config.py` | `WHATSAPP_ENABLED` flag (reads from env, defaults to `False`) |
+| `telegram_worker.js` | New file — Cloudflare Worker Telegram relay |
+
+### Bugs Fixed
+
+| Issue | Fix |
+|---|---|
+| `api.telegram.org` blocked on PA free tier | Cloudflare Worker relay |
+| Pushover costs $4.99 | Replaced with ntfy.sh (free) |
+| Alert banner never auto-dismissed (inline script silent in outerHTML) | Polling in index.html |
+| Notification log lost on restart | JSON persistence |
+| Notif-log container missing when empty | Always-rendered #notif-log-list |
 
 ## 8. Architecture (Final)
 
@@ -1002,15 +1076,20 @@ python webui.py   # http://localhost:8080
 
 ## 18. Known Issues, Tech Debt & Roadmap
 
-### Recently Fixed (Session 11)
+### Recently Fixed
 
-| Issue | Fix |
-|---|---|
-| Briefcase icon didn't render on user's device | Replaced `briefcase` ligature with `description` (document icon) — renders reliably across all devices |
-| Browser caching OAuth callback URL caused "Session expired" on viewport retoggle | Added `@app.after_request` handler setting `Cache-Control: no-store` on all responses; changed error render to `redirect("/")` |
-| Test Notification button silently did nothing for discord/whatsapp_cloud/twilio/pushover | Replaced hand-rolled channel dispatch with `notify_single()` — handles all 8 channels |
-| Alerts tab Test buttons gave "Error sending test" toast | Route now returns JSON for `fetch()` calls, HTML for HTMX calls |
-| No visible feedback on Check Now / Send Test Email / Test Notification | Added `alert_message` context variable + colored banner in dashboard template |
+| Issue | Fix | Session |
+|---|---|---|
+| Briefcase icon didn't render on user's device | Replaced `briefcase` ligature with `description` (document icon) — renders reliably across all devices | 11 |
+| Browser caching OAuth callback URL caused "Session expired" on viewport retoggle | Added `@app.after_request` handler setting `Cache-Control: no-store` on all responses; changed error render to `redirect("/")` | 11 |
+| Test Notification button silently did nothing for discord/whatsapp_cloud/twilio/pushover | Replaced hand-rolled channel dispatch with `notify_single()` — handles all 8 channels | 11 |
+| Alerts tab Test buttons gave "Error sending test" toast | Route now returns JSON for `fetch()` calls, HTML for HTMX calls | 11 |
+| No visible feedback on Check Now / Send Test Email / Test Notification | Added `alert_message` context variable + colored banner in dashboard template | 11 |
+| Telegram blocked on PythonAnywhere free tier | Deployed Cloudflare Worker relay — `telegram_worker.js` proxies to `api.telegram.org` | 14 |
+| Alert banner never auto-dismissed | Inline `<script>` in `outerHTML` partial response doesn't execute; replaced with `setInterval` polling in `index.html` | 14 |
+| Notification log lost on app restart | Added `load_notif_log()` / `save_notif_log()` — persists to `user_notif_log.json` | 14 |
+| Notif-log container missing when empty | Always render `#notif-log-list` div; empty state is a separate `#notif-log-empty` div that JS hides on first entry | 14 |
+| Pushover costs $4.99/purchase | Replaced with ntfy.sh (free, no account needed); `send_pushover()` kept for backward compat | 14 |
 
 ### Bugs
 
@@ -1066,6 +1145,7 @@ python webui.py   # http://localhost:8080
 | **11** | Jun 13 | ~Morning → Afternoon | Frontend polish — Material Symbols restored, briefcase→description icon, theme toggle ligature fix, nav fill JS restored, "none" channel card. Backend — email normalization, Cache-Control headers, callback redirect fix, `notify_single()` replaces hardcoded channel dispatch (fixes Test Notification for discord/whatsapp_cloud/twilio/pushover), visible error banner on all action buttons |
 | **12** | Jun 12 | ~Morning | Visual overhaul — custom SVG badges, hero banner, architecture diagram (7-color), how-it-works flow, designer skill created |
 | **13** | Jun 12 | ~Evening | Discord notifications, in-place sheet updates, two-pass AI pipeline, alias matching (60+), full status pipeline (8 stages), WhatsApp deprecated, Indian market tuning |
+| **14** | Jun 14 | ~Afternoon | Cloudflare Telegram relay (PA blocks api.telegram.org), ntfy.sh channel (replaces Pushover), WhatsApp feature-flagged off, timezone selector, notif_log JSON persistence, alert banner auto-dismiss (3s fade + alerts log), polling replaces MutationObserver for banner detection |
 
 ## Appendix B: Why Each Approach Was Chosen/Rejected
 
@@ -1154,4 +1234,4 @@ pytest
 
 ---
 
-*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-13 (Updated: Session 11 — test notification fix, visible error feedback, email normalization, Cache-Control, Material Symbols).*
+*End of PROJECT_COMPLETE.md — single-file A-Z reference covering history, architecture, every file, endpoints, parser internals, OAuth flow, config, deployment, testing, known issues, and appendices. Generated 2026-06-14 (Updated: Session 14 — Telegram relay, ntfy.sh, notif_log persistence, alert banner auto-dismiss).*
