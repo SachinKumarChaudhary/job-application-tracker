@@ -48,10 +48,10 @@ def _send_telegram(bot_token: str, chat_id: str, message: str) -> bool:
     payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
 
     urls = [
-        f"{_TELEGRAM_RELAY_URL}/bot{bot_token}/sendMessage",
+        f"{_TELEGRAM_RELAY_URL}/bot{bot_token}/sendMessage" if _TELEGRAM_RELAY_URL else None,
         f"https://api.telegram.org/bot{bot_token}/sendMessage",
-        f"http://api.telegram.org/bot{bot_token}/sendMessage",
     ]
+    urls = [u for u in urls if u]
     last_err = ""
     for url in urls:
         try:

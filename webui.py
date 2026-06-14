@@ -2,7 +2,7 @@
 """
 Offer Tracker — Multi-user web app with browser OAuth, notification prefs, and demo mode.
 """
-import os, sys, threading, time, json, base64
+import os, sys, threading, time, json, base64, traceback
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -248,9 +248,22 @@ def ensure_sheet(email: str) -> str:
     return f"https://docs.google.com/spreadsheets/d/{sid}"
 
 
+def _get_sheet_id(sheets, sid: str) -> int:
+    try:
+        meta = sheets.spreadsheets().get(spreadsheetId=sid, fields="sheets.properties").execute()
+        for sh in meta.get("sheets", []):
+            if sh["properties"].get("title", "").startswith("Job Application"):
+                return sh["properties"]["sheetId"]
+    except Exception:
+        pass
+    return 0
+
+
 def format_sheet(email: str) -> bool:
     sid = _find_or_create_sheet(email)
     sheets = build("sheets", "v4", credentials=get_creds(email))
+
+    sheet_id = _get_sheet_id(sheets, sid)
 
     header_bg = {"red": 0.16, "green": 0.25, "blue": 0.45}
     header_fg = {"red": 1, "green": 1, "blue": 1}
@@ -262,18 +275,18 @@ def format_sheet(email: str) -> bool:
 
     try:
         meta = sheets.spreadsheets().get(spreadsheetId=sid, fields="sheets.bandedRanges").execute()
-        existing = meta.get("sheets", [{}])[0].get("bandedRanges", [])
-        for br in existing:
-            rid = br.get("bandedRangeId")
-            if rid:
-                requests.append({"deleteBanding": {"bandedRangeId": rid}})
+        for sh in meta.get("sheets", []):
+            for br in sh.get("bandedRanges", []):
+                rid = br.get("bandedRangeId")
+                if rid:
+                    requests.append({"deleteBanding": {"bandedRangeId": rid}})
     except Exception:
         pass
 
     requests.append({
         "addBanding": {
             "bandedRange": {
-                "range": {"sheetId": 0, "startRowIndex": 1},
+                "range": {"sheetId": sheet_id, "startRowIndex": 1},
                 "rowProperties": {
                     "headerColor": header_bg,
                     "firstBandColor": light,
@@ -285,7 +298,7 @@ def format_sheet(email: str) -> bool:
 
     requests.append({
         "repeatCell": {
-            "range": {"sheetId": 0, "startRowIndex": 0, "endRowIndex": 1},
+            "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1},
             "cell": {
                 "userEnteredFormat": {
                     "backgroundColor": header_bg,
@@ -304,20 +317,20 @@ def format_sheet(email: str) -> bool:
 
     requests.append({
         "updateBorders": {
-            "range": {"sheetId": 0, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 13},
+            "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 13},
             "bottom": {"style": "SOLID", "width": 2, "color": accent},
         }
     })
 
     requests.append({
         "autoResizeDimensions": {
-            "dimensions": {"sheetId": 0, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 13}
+            "dimensions": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 13}
         }
     })
 
     requests.append({
         "updateSheetProperties": {
-            "properties": {"sheetId": 0, "gridProperties": {"frozenRowCount": 1}},
+            "properties": {"sheetId": sheet_id, "gridProperties": {"frozenRowCount": 1}},
             "fields": "gridProperties.frozenRowCount"
         }
     })
@@ -329,7 +342,7 @@ def format_sheet(email: str) -> bool:
 
     requests.append({
         "repeatCell": {
-            "range": {"sheetId": 0, "startRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 13},
+            "range": {"sheetId": sheet_id, "startRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 13},
             "cell": {
                 "userEnteredFormat": {
                     "textFormat": {"fontSize": FONT_SIZE},
@@ -345,7 +358,7 @@ def format_sheet(email: str) -> bool:
     for ci in date_cols:
         requests.append({
             "repeatCell": {
-                "range": {"sheetId": 0, "startRowIndex": 1, "startColumnIndex": ci, "endColumnIndex": ci + 1},
+                "range": {"sheetId": sheet_id, "startRowIndex": 1, "startColumnIndex": ci, "endColumnIndex": ci + 1},
                 "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
                 "fields": "userEnteredFormat.horizontalAlignment"
             }
@@ -357,6 +370,7 @@ def format_sheet(email: str) -> bool:
         return True
     except Exception as e:
         log(email, f"Format failed: {e}")
+        logger.error(f"Format sheet traceback:\n{traceback.format_exc()}")
         return False
 
 

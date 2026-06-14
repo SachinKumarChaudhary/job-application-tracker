@@ -8,7 +8,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 CREDENTIALS_DIR = BASE_DIR / "credentials"
 CREDENTIALS_PATH = CREDENTIALS_DIR / "credentials.json"
-TOKEN_PATH = CREDENTIALS_DIR / "token.json"
+
 
 GMAIL_QUERY = os.getenv("GMAIL_QUERY", 'subject:"application received" OR subject:"thank you for applying" OR subject:"application confirmation" OR subject:"offer letter" OR subject:"we received your application"')
 POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))

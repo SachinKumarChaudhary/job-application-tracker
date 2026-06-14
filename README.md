@@ -141,17 +141,14 @@ python webui.py        # runs at http://localhost:5000
 
 | Component | File | Lines | Role |
 |:---|---:|:---:|:---|
-| **Flask app** | `webui.py` | 910 | OAuth, routes, scheduler loop, per-user token isolation |
-| **Poller** | `src/poller.py` | 85 | Gmail API fetch, header extraction, body parsing |
+| **Flask app** | `webui.py` | 1250 | OAuth, routes, scheduler loop, per-user token isolation |
+| **Email utils** | `src/email_utils.py` | 40 | Gmail header extraction, MIME body decode |
 | **Parser** | `src/parser.py` | 283 | Company/role extraction, 8-stage classifier, 60+ aliases, AI integration |
 | **AI layer** | `src/ai.py` | 134 | Gemini/Groq/NVIDIA API calls with JSON response parsing |
 | **Models** | `src/models.py` | 88 | Pydantic `JobApplication` with 13-field sheet/alert formatting |
-| **Notifier** | `src/notifier.py` | 185 | 7 channels: Telegram, Slack, Discord, WhatsApp (3x), Pushover |
-| **Sheets** | `src/sheets_writer.py` | 47 | Google Sheets auto-create, append, dedup via Message-ID |
-| **Dedup** | `src/duplicate_checker.py` | 27 | Message-ID cache to prevent duplicate processing |
-| **Scheduler** | `src/scheduler.py` | 43 | CLI daemon (legacy — webui has its own scheduler) |
-| **Web UI** | `templates/index.html` | 718 | Material Design 3 — dark/light, 4 tabs, responsive |
-| **Dashboard** | `templates/_dashboard.html` | 326 | Dashboard partial — actions, stats, entries, per-channel alerts |
+| **Notifier** | `src/notifier.py` | 244 | 7 channels: Telegram, Slack, Discord, WhatsApp (3x), Pushover, ntfy |
+| **Web UI** | `templates/index.html` | 599 | Material Design 3 — dark/light, 4 tabs, responsive |
+| **Dashboard** | `templates/_dashboard.html` | 248 | Dashboard partial — actions, stats, entries, per-channel alerts |
 
 <br>
 

@@ -5,7 +5,7 @@ from typing import Any
 
 from src.models import JobApplication
 from src.config import AI_PROVIDER, logger
-from src.poller import extract_header, get_body_text, get_message_id
+from src.email_utils import extract_header, get_body_text, get_message_id
 from src.ai import parse_email_with_ai
 
 

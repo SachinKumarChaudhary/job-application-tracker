@@ -101,31 +101,26 @@ Mark as Read ──[remove UNREAD label]──► Gmail
 
 | File | Lines | Role |
 |------|-------|------|
-| `webui.py` | 910 | Flask app — routes, OAuth, scheduler, per-user polling, in-place updates, sheet formatting, email normalization |
+| `webui.py` | 1250 | Flask app — routes, OAuth, scheduler, per-user polling, in-place updates, sheet formatting, email normalization |
 | `wsgi.py` | 11 | PythonAnywhere WSGI bridge |
 
 ### Source Modules (`src/`)
 
 | File | Lines | Role |
 |------|-------|------|
-| `config.py` | 59 | Env var loading, logging setup, constants, validation |
-| `main.py` | 61 | `OfferTracker` class — legacy single-user orchestrator |
-| `poller.py` | 85 | Gmail API fetch, header extraction, body decode, mark-as-read |
+| `email_utils.py` | 40 | Gmail header extraction, MIME body decode, Message-ID lookup |
+| `config.py` | 60 | Env var loading, logging setup, constants, validation |
 | `parser.py` | 283 | Email parsing — company/role extraction, 8-stage type classifier, 60+ company aliases, two-pass AI filter, date parsing |
 | `ai.py` | 134 | AI provider abstraction — Gemini, Groq, NVIDIA API calls with JSON response parsing |
 | `models.py` | 88 | Pydantic `JobApplication` model — validation, 13-column sheet rows, alert text with emoji |
-| `notifier.py` | 185 | 7-channel notification dispatch (Telegram, Slack, Discord, WhatsApp x3, Pushover) |
-| `sheets_writer.py` | 47 | Google Sheets CRUD — auto-create, append, dedup |
-| `duplicate_checker.py` | 27 | Message-ID dedup cache |
-| `scheduler.py` | 43 | Standalone CLI daemon (legacy — webui has its own scheduler) |
-| `setup_oauth.py` | — | One-time OAuth setup script |
+| `notifier.py` | 244 | 8-channel notification dispatch (Telegram, Slack, Discord, WhatsApp x3, Pushover, ntfy) |
 
 ### Web Layer
 
 | File | Lines | Role |
 |------|-------|------|
-| `templates/index.html` | 718 | Material Design 3 — dark/light theme, 4 tab nav, responsive mobile-first, HTMX |
-| `templates/_dashboard.html` | 326 | Dashboard partial — action buttons, stat cards, entries table with pipeline progress bars, per-channel alert cards |
+| `templates/index.html` | 599 | Material Design 3 — dark/light theme, 4 tab nav, responsive mobile-first, HTMX |
+| `templates/_dashboard.html` | 248 | Dashboard partial — action buttons, stat cards, entries table with pipeline progress bars, per-channel alert cards |
 
 ### Tests
 
@@ -709,9 +704,8 @@ The codebase uses several established patterns:
 
 | Pattern | Implementation | Files |
 |---------|--------------|-------|
-| **Pipeline** | Sequential: poll → parse → dedup → sheets → notify | `webui.py:run_poll()`, `src/main.py:run_once()` |
+| **Pipeline** | Sequential: poll → parse → dedup → sheets → notify | `webui.py:run_poll()` |
 | **Strategy** | AI providers (Gemini/Groq/NVIDIA) with unified interface + regex fallback | `src/ai.py:parse_email_with_ai()` |
-| **Repository** | `SheetsHelper` abstracts Google Sheets as a data store | `src/sheets_writer.py` |
 | **Observer/Polling** | Scheduler polls Gmail at intervals; Telegram verification polls `getUpdates` | `webui.py:scheduler_loop()`, JS auto-poll |
 | **Factory** | `_call_gemini`, `_call_groq`, `_call_nvidia` are factory-like dispatch | `src/ai.py` |
 | **Background Worker** | Daemon thread runs `scheduler_loop` alongside Flask | `webui.py:905` |
@@ -747,13 +741,9 @@ The codebase uses several established patterns:
 
 | Component | Tests | Missing |
 |-----------|-------|---------|
-| `src/poller.py` | 0 | No mock Gmail API tests |
-| `src/sheets_writer.py` | 0 | No gspread mock tests |
-| `src/duplicate_checker.py` | 0 | No unit tests |
-| `src/notifier.py` | 0 | No HTTP mock tests for 7 channels |
+| `src/notifier.py` | 0 | No HTTP mock tests for 8 channels |
 | `src/ai.py` | 0 | No provider mock tests (Gemini/Groq/NVIDIA) |
-| `src/main.py` | 0 | No integration tests |
-| `src/scheduler.py` | 0 | No signal handling tests |
+| `src/email_utils.py` | 0 | No header/body extraction tests |
 | `webui.py` | 0 | No Flask client tests |
 
 ---

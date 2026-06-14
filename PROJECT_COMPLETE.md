@@ -568,18 +568,15 @@ Mark Read ──remove UNREAD label──► Gmail
 ### Components Summary
 
 | Component | File | Lines | Role |
-|---|---|---|---|---|
-| Flask app | `webui.py` | ~900 | Routes, OAuth, scheduler, per-user polling, sheet formatting, in-place updates, pipeline status priority, email normalization, Cache-Control |
-| Poller | `src/poller.py` | 85 | Gmail fetch, header extraction, body decode |
-| Parser | `src/parser.py` | 238 | Company/role extraction, type classification (8 stages), AI integration, quick_is_job_email filter, COMPANY_ALIASES (60+), Indian market tuning |
+|---|---|---|---|---|---|
+| Flask app | `webui.py` | 1250 | Routes, OAuth, scheduler, per-user polling, sheet formatting, in-place updates, pipeline status priority, email normalization, Cache-Control |
+| Email utils | `src/email_utils.py` | 40 | Gmail header extraction, MIME body decode, Message-ID lookup |
+| Parser | `src/parser.py` | 283 | Company/role extraction, type classification (8 stages), AI integration, quick_is_job_email filter, COMPANY_ALIASES (60+), Indian market tuning |
 | AI layer | `src/ai.py` | 134 | NVIDIA/Gemini/Groq API calls (two-pass: quick filter → AI) |
-| Models | `src/models.py` | 86 | Pydantic JobApplication (13 fields), 8 email types with emojis |
-| Notifier | `src/notifier.py` | 99 | Telegram/Slack/WhatsApp/Pushover/Discord |
-| Sheets | `src/sheets_writer.py` | 47 | Google Sheets CRUD |
-| Dedup | `src/duplicate_checker.py` | 27 | Message-ID cache |
-| Scheduler | `src/scheduler.py` | 43 | Standalone CLI daemon |
-| HTML UI | `templates/index.html` | ~780 | Dashboard + prefs + logs + pipeline progress bar + Material Symbols |
-| Dashboard partial | `templates/_dashboard.html` | ~20 | "Notifications disabled" card for `none` channel |
+| Models | `src/models.py` | 88 | Pydantic JobApplication (13 fields), 8 email types with emojis |
+| Notifier | `src/notifier.py` | 244 | 8 channels: Telegram/Slack/Discord/WhatsApp x3/Pushover/ntfy |
+| HTML UI | `templates/index.html` | 599 | Dashboard + prefs + logs + pipeline progress bar + Material Symbols |
+| Dashboard partial | `templates/_dashboard.html` | 248 | Status cards, entries table, per-channel alert cards |
 
 ---
 
@@ -589,31 +586,26 @@ Mark Read ──remove UNREAD label──► Gmail
 
 | File | Lines | Role |
 |---|---|---|
-| `webui.py` | ~900 | Flask app — routes, OAuth, scheduler, per-user polling, sheet formatting, email normalization, Cache-Control, in-place updates, pipeline status priority |
+| `webui.py` | 1250 | Flask app — routes, OAuth, scheduler, per-user polling, sheet formatting, email normalization, Cache-Control, in-place updates, pipeline status priority |
 | `wsgi.py` | 11 | PythonAnywhere WSGI bridge |
 
 ### Source Modules (`src/`)
 
 | File | Lines | Role |
 |---|---|---|
-| `config.py` | 52 | Env var loading, logging setup, constants, validation |
-| `main.py` | 61 | `OfferTracker` class — orchestrates one poll cycle |
-| `poller.py` | 85 | Gmail API fetch, header extraction, body decode, mark-as-read |
-| `parser.py` | 183 | Email parsing — company/role extraction, type classification, date parsing |
-| `ai.py` | 129 | AI provider abstraction — Gemini, Groq, NVIDIA API calls |
-| `models.py` | 82 | Pydantic `JobApplication` model — validation, sheet rows (13 cols), alert text |
-| `notifier.py` | 89 | Multi-channel notification dispatch |
-| `sheets_writer.py` | 47 | Google Sheets CRUD — auto-create, append, dedup |
-| `duplicate_checker.py` | 27 | Message-ID dedup cache |
-| `scheduler.py` | 43 | Standalone scheduler daemon (CLI mode) |
-| `setup_oauth.py` | — | One-time OAuth setup script |
+| `email_utils.py` | 40 | Gmail header extraction, MIME body decode, Message-ID lookup |
+| `config.py` | 60 | Env var loading, logging setup, constants, validation |
+| `parser.py` | 283 | Email parsing — company/role extraction, 8-stage type classifier, 60+ company aliases, two-pass AI filter, date parsing |
+| `ai.py` | 134 | AI provider abstraction — Gemini, Groq, NVIDIA API calls |
+| `models.py` | 88 | Pydantic `JobApplication` model — validation, sheet rows (13 cols), alert text |
+| `notifier.py` | 244 | 8-channel notification dispatch (Telegram, Slack, Discord, WhatsApp x3, Pushover, ntfy) |
 
 ### Web Layer
 
 | File | Lines | Role |
 |---|---|---|
-| `templates/index.html` | ~780 | Single-page HTML/JS app — dashboard, prefs, logs, Material Symbols, pipeline progress bar |
-| `templates/_dashboard.html` | ~20 | Dashboard partial — status cards, alerts, "Notifications disabled" card for `none` channel |
+| `templates/index.html` | 599 | Dashboard + prefs + logs + pipeline progress bar + Material Symbols |
+| `templates/_dashboard.html` | 248 | Dashboard partial — status cards, entries table, per-channel alert cards |
 
 ### Tests
 
