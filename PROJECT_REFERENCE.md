@@ -135,11 +135,8 @@ Mark as Read ──[remove UNREAD label]──► Gmail
 |------|------|
 | `.env.example` | All config vars with documentation |
 | `requirements.txt` | 9 dependencies |
-| `setup.sh` | One-command environment setup |
 | `.gitignore` | 21 patterns (secrets, caches, IDE, PDFs, session logs) |
-| `generate_docs.py` | Markdown→PDF converter (WeasyPrint) |
-| `gmail_filter.xml` | Gmail filter rules for auto-labeling application emails |
-| `n8n-workflow.json` | Archived n8n workflow design (8 nodes, preserved for reference) |
+| `utility/` | Standalone/archival scripts — doc generator, n8n artifacts, worker code |
 
 ### Documentation
 
@@ -148,7 +145,7 @@ Mark as Read ──[remove UNREAD label]──► Gmail
 | `README.md` | ~9K | Quickstart, custom SVGs, architecture, config, deployment |
 | `PROJECT_COMPLETE.md` | 40K+ | Single-file A-Z reference — history, architecture, every file, endpoints, parser, OAuth, config, deployment, testing, known issues, appendices |
 | `PROJECT_REFERENCE.md` | — | This file — concise technical reference |
-| `docs/n8n-workflow.md` | 5.5K | n8n workflow breakdown, code, why rejected |
+| `utility/` | — | Standalone scripts & archives — doc generator, n8n artifacts, Cloudflare Worker |
 | `docs/DEVICE_ARCHITECTURE.md` | 3K | Device hardware, OS, env spec |
 | `GITHUB.md` | 1K | Public Git info for contributors |
 

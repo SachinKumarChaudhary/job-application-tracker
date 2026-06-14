@@ -146,7 +146,7 @@ python webui.py        # runs at http://localhost:5000
 | **Parser** | `src/parser.py` | 283 | Company/role extraction, 8-stage classifier, 60+ aliases, AI integration |
 | **AI layer** | `src/ai.py` | 134 | Gemini/Groq/NVIDIA API calls with JSON response parsing |
 | **Models** | `src/models.py` | 88 | Pydantic `JobApplication` with 13-field sheet/alert formatting |
-| **Notifier** | `src/notifier.py` | 244 | 7 channels: Telegram, Slack, Discord, WhatsApp (3x), Pushover, ntfy |
+| **Notifier** | `src/notifier.py` | 244 | 8 channels: Telegram, Slack, Discord, WhatsApp (3x), Pushover, ntfy |
 | **Web UI** | `templates/index.html` | 599 | Material Design 3 — dark/light, 4 tabs, responsive |
 | **Dashboard** | `templates/_dashboard.html` | 248 | Dashboard partial — actions, stats, entries, per-channel alerts |
 
