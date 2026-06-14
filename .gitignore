@@ -30,24 +30,33 @@ Screenshot_*.png
 
 # Auto-generated agent context
 .memcore-context.md
+.selflearn-context.md
+
+# Agent instructions & handoff (local only)
+AGENTS.md
+ANALYSIS_COMPLETE.md
+CLAUDE_DEBUG.md
+claudereply.md
+clauderespone.md
+CODEBASE_ANALYSIS.md
+REVIEW_DOC.md
+DESIGN.md
 
 # Session logs (internal notes, not for public)
-AGENTS.md
 SESSION_*.md
 session_*.md
 sessions_*.md
-clauderespone.md
 manus_prompt.txt
 manus_workflow_prompt.txt
-REVIEW_DOC.md
-CODEBASE_ANALYSIS.md
 
 # Debug logs
 errorlog.txt
 
-# n8n duplicates / references
+# n8n artifacts (deprecated, archival only)
 n8n_workflow_export.json
 n8n_code_node.py
+n8n-workflow.json
+utility/
 
 # Generated binaries / screenshots
 *.xlsx
@@ -60,6 +69,18 @@ n8n_code_node.py
 newdesign.html
 n8n_startup_report.md
 
-# Environment-specific setup guides
-HERMES_SETUP.md
+# Device info & environment-specific guides (PII)
+docs/DEVICE_ARCHITECTURE.md
+docs/n8n-workflow.md
 docs/linkedin-post-strategy.md
+HERMES_SETUP.md
+
+# Gmail filter XML (contains personal email)
+gmail_filter.xml
+
+# Standalone utility scripts
+generate_docs.py
+telegram_relay.py
+telegram_worker.js
+relay_setup.sh
+setup.sh
