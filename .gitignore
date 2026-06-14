@@ -76,4 +76,3 @@ gmail_filter.xml
 
 # Standalone utility scripts (not part of main app)
 generate_docs.py
-setup.sh
